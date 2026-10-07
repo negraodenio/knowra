@@ -1,17 +1,21 @@
 import { z } from "zod";
 import { openRouterClient, OpenRouterMessage } from "./openrouter";
-import { getModelForTask, AITask } from "./models";
+import { getModel, ModelTask, AITask } from "./models";
 import { telemetryService, AIUsageRecord } from "./usage";
 import { logger } from "@/lib/observability/logger";
+import { getAIConfig } from "./config";
+
+export type GatewayTask = ModelTask | AITask;
 
 export interface GenerateTextOptions {
-  task: AITask;
+  task: GatewayTask;
   systemPrompt: string;
   userPrompt: string;
   promptVersion: string;
   userId?: string;
   temperature?: number;
   maxTokens?: number;
+  modelOverride?: string;
 }
 
 export interface GenerateStructuredOptions<T extends z.ZodTypeAny> extends GenerateTextOptions {
@@ -28,12 +32,34 @@ export interface AIGatewayResult<T> {
 
 export class AIGateway {
   /**
+   * Convenience invocation method matching generate("task", prompt, options)
+   */
+  async generate(
+    task: GatewayTask,
+    prompt: string,
+    options?: Partial<Omit<GenerateTextOptions, "task" | "userPrompt">>
+  ): Promise<AIGatewayResult<string>> {
+    return this.generateText({
+      task,
+      systemPrompt: options?.systemPrompt || "You are an AI assistant for the adaptive learning platform.",
+      userPrompt: prompt,
+      promptVersion: options?.promptVersion || `${String(task).toLowerCase()}_v1`,
+      userId: options?.userId,
+      temperature: options?.temperature,
+      maxTokens: options?.maxTokens,
+      modelOverride: options?.modelOverride,
+    });
+  }
+
+  /**
    * Generates a raw text completion through the OpenRouter gateway.
+   * Model selection is environment-driven and resolved per task from the registry.
    */
   async generateText(options: GenerateTextOptions): Promise<AIGatewayResult<string>> {
-    const { task, systemPrompt, userPrompt, promptVersion, userId, temperature, maxTokens } = options;
-    const model = getModelForTask(task);
+    const { task, systemPrompt, userPrompt, promptVersion, userId, temperature, maxTokens, modelOverride } = options;
+    const model = modelOverride || getModel(task);
     const startTime = Date.now();
+    const config = getAIConfig();
 
     const messages: OpenRouterMessage[] = [
       { role: "system", content: systemPrompt },
@@ -44,7 +70,7 @@ export class AIGateway {
       const response = await openRouterClient.complete({
         model,
         messages,
-        temperature,
+        temperature: temperature ?? config.temperature,
         maxTokens,
       });
 
@@ -52,8 +78,8 @@ export class AIGateway {
       const usage = await telemetryService.recordUsage({
         userId,
         operation: `generateText:${task}`,
-        task,
-        provider: "openrouter",
+        task: String(task).toLowerCase(),
+        provider: config.provider,
         model: response.model,
         promptTokens: response.promptTokens,
         completionTokens: response.completionTokens,
@@ -75,8 +101,8 @@ export class AIGateway {
       await telemetryService.recordUsage({
         userId,
         operation: `generateText:${task}`,
-        task,
-        provider: "openrouter",
+        task: String(task).toLowerCase(),
+        provider: config.provider,
         model,
         promptTokens: 0,
         completionTokens: 0,
@@ -92,14 +118,16 @@ export class AIGateway {
 
   /**
    * Generates a structured output validated strictly against a Zod schema (§32).
+   * Model selection is environment-driven and resolved per task from the registry.
    * Strips markdown fences if present and handles schema validation errors.
    */
   async generateStructured<T extends z.ZodTypeAny>(
     options: GenerateStructuredOptions<T>
   ): Promise<AIGatewayResult<z.infer<T>>> {
-    const { task, systemPrompt, userPrompt, promptVersion, schema, userId, temperature, maxTokens } = options;
-    const model = getModelForTask(task);
+    const { task, systemPrompt, userPrompt, promptVersion, schema, userId, temperature, maxTokens, modelOverride } = options;
+    const model = modelOverride || getModel(task);
     const startTime = Date.now();
+    const config = getAIConfig();
 
     const formattedSystemPrompt = `${systemPrompt}\n\nIMPORTANT: You MUST respond ONLY with valid JSON matching the requested schema. Do not enclose in markdown code blocks if possible.`;
 
@@ -112,7 +140,7 @@ export class AIGateway {
       const response = await openRouterClient.complete({
         model,
         messages,
-        temperature,
+        temperature: temperature ?? config.temperature,
         maxTokens,
         responseFormat: { type: "json_object" },
       });
@@ -134,8 +162,8 @@ export class AIGateway {
         await telemetryService.recordUsage({
           userId,
           operation: `generateStructured:${task}`,
-          task,
-          provider: "openrouter",
+          task: String(task).toLowerCase(),
+          provider: config.provider,
           model: response.model,
           promptTokens: response.promptTokens,
           completionTokens: response.completionTokens,
@@ -151,8 +179,8 @@ export class AIGateway {
         await telemetryService.recordUsage({
           userId,
           operation: `generateStructured:${task}`,
-          task,
-          provider: "openrouter",
+          task: String(task).toLowerCase(),
+          provider: config.provider,
           model: response.model,
           promptTokens: response.promptTokens,
           completionTokens: response.completionTokens,
@@ -166,8 +194,8 @@ export class AIGateway {
       const usage = await telemetryService.recordUsage({
         userId,
         operation: `generateStructured:${task}`,
-        task,
-        provider: "openrouter",
+        task: String(task).toLowerCase(),
+        provider: config.provider,
         model: response.model,
         promptTokens: response.promptTokens,
         completionTokens: response.completionTokens,

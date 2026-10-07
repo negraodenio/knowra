@@ -1,4 +1,5 @@
 import { logger } from "@/lib/observability/logger";
+import { getAIConfig } from "./config";
 
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant";
@@ -23,26 +24,36 @@ export interface OpenRouterResponse {
 }
 
 export class OpenRouterClient {
-  private apiKey: string;
-  private baseUrl: string;
+  private explicitApiKey?: string;
+  private explicitBaseUrl?: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.OPENROUTER_API_KEY || "";
-    this.baseUrl = baseUrl || process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+    this.explicitApiKey = apiKey;
+    this.explicitBaseUrl = baseUrl;
+  }
+
+  get apiKey(): string {
+    return this.explicitApiKey || process.env.OPENROUTER_API_KEY || "";
+  }
+
+  get baseUrl(): string {
+    return this.explicitBaseUrl || process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   }
 
   async complete(options: OpenRouterRequestOptions): Promise<OpenRouterResponse> {
+    const config = getAIConfig();
     const {
       model,
       messages,
-      temperature = 0.2,
+      temperature = config.temperature,
       maxTokens = 2048,
       responseFormat,
-      timeoutMs = 45000,
-      maxRetries = 2,
+      timeoutMs = config.timeoutMs,
+      maxRetries = config.maxRetries,
     } = options;
 
-    if (!this.apiKey) {
+    const apiKey = this.apiKey;
+    if (!apiKey) {
       throw new Error("OPENROUTER_API_KEY is not configured in the environment.");
     }
 
@@ -58,7 +69,7 @@ export class OpenRouterClient {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "HTTP-Referer": "https://eduia.local",
             "X-Title": "EDUIA Learning Platform",
           },

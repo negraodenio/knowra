@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getModelForTask } from "@/lib/ai/models";
+import { getModel, ModelTask } from "@/lib/ai/models";
 
 export async function GET() {
   const isSupabaseConfigured = Boolean(
@@ -7,15 +7,23 @@ export async function GET() {
   );
   const isOpenRouterConfigured = Boolean(process.env.OPENROUTER_API_KEY);
 
+  const resolveSafe = (task: ModelTask) => {
+    try {
+      return getModel(task);
+    } catch {
+      return "NOT_CONFIGURED";
+    }
+  };
+
   const configuredModels = {
-    tutor: getModelForTask("TUTOR"),
-    feynman: getModelForTask("FEYNMAN"),
-    classifier: getModelForTask("CLASSIFIER"),
-    diagnostic: getModelForTask("DIAGNOSTIC"),
-    plan: getModelForTask("PLAN"),
-    competency: getModelForTask("COMPETENCY"),
-    assessment: getModelForTask("ASSESSMENT"),
-    material: getModelForTask("MATERIAL"),
+    tutor: resolveSafe("tutor"),
+    feynman: resolveSafe("feynman"),
+    classifier: resolveSafe("classifier"),
+    diagnostic: resolveSafe("diagnostic"),
+    plan: resolveSafe("plan"),
+    competency: resolveSafe("competency"),
+    assessment: resolveSafe("assessment"),
+    material: resolveSafe("material"),
   };
 
   return NextResponse.json({

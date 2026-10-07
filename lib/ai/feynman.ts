@@ -93,7 +93,7 @@ Evaluate this explanation thoroughly.`;
 
   try {
     const result = await aiGateway.generateStructured({
-      task: "FEYNMAN",
+      task: "feynman",
       systemPrompt,
       userPrompt,
       promptVersion: FEYNMAN_PROMPT_VERSION,

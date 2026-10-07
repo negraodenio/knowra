@@ -74,7 +74,7 @@ Self-reported level: "${selfReportedLevel || "Not provided"}"
 Deadline: "${deadline || "None"}"`;
 
       const aiResult = await aiGateway.generateStructured({
-        task: "PLAN",
+        task: "plan",
         systemPrompt,
         userPrompt,
         promptVersion: PROMPT_VERSION,
