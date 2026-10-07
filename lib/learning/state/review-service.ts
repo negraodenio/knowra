@@ -9,6 +9,7 @@ import {
   SchedulingResult,
 } from "../spaced-repetition/scheduler";
 import { MasteryCalculationOutput } from "../mastery";
+import { supabasePersistence } from "@/lib/db/supabase-persistence";
 
 export interface ReviewItemEntity {
   id: string;
@@ -91,6 +92,20 @@ export class ReviewService {
     };
 
     this.reviewItems.set(item.id, item);
+    await supabasePersistence.persistReviewItem(item as unknown as {
+      id: string;
+      userId: string;
+      learningGoalId: string;
+      competencyId: string;
+      schedulerType: string;
+      schedulerVersion: string;
+      schedulerState: Record<string, unknown>;
+      dueAt: string;
+      lastReviewedAt?: string;
+      reviewCount: number;
+      createdAt: string;
+      updatedAt: string;
+    });
     return item;
   }
 
@@ -199,6 +214,21 @@ export class ReviewService {
     item.reviewCount += 1;
     item.updatedAt = now;
 
+    await supabasePersistence.persistReviewItem(item as unknown as {
+      id: string;
+      userId: string;
+      learningGoalId: string;
+      competencyId: string;
+      schedulerType: string;
+      schedulerVersion: string;
+      schedulerState: Record<string, unknown>;
+      dueAt: string;
+      lastReviewedAt?: string;
+      reviewCount: number;
+      createdAt: string;
+      updatedAt: string;
+    });
+
     // Record Append-Only REVIEW Evidence (§14)
     await learningStateService.recordReviewEvidence(
       userId,
@@ -253,6 +283,7 @@ export class ReviewService {
     };
 
     this.reviewSessions.set(session.id, session);
+    await supabasePersistence.persistReviewSession(session);
     return session;
   }
 
@@ -295,6 +326,8 @@ export class ReviewService {
       session.status = "COMPLETED";
       session.completedAt = referenceDate.toISOString();
     }
+
+    await supabasePersistence.persistReviewSession(session);
 
     return {
       session,

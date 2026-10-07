@@ -5,6 +5,7 @@ import { evaluateLearningGap, LearningGap } from "../gap-analysis";
 import { getCompetencyById } from "../curriculum";
 import { competencyMapService } from "../competency-map";
 import { EvidenceType, MasteryState } from "../types";
+import { supabasePersistence } from "@/lib/db/supabase-persistence";
 
 export interface MasterySnapshotEntity {
   id: string;
@@ -94,6 +95,19 @@ export class MasteryService {
 
     if (gap) {
       this.gaps.set(existingGapKey, gap);
+      await supabasePersistence.persistGap({
+        id: gap.id,
+        userId: gap.userId,
+        learningGoalId: gap.learningGoalId,
+        competencyId: gap.competencyId,
+        severity: gap.severity,
+        reason: gap.reason,
+        status: gap.status,
+        signals: gap.signals,
+        version: gap.version,
+        detectedAt: gap.detectedAt,
+        resolvedAt: gap.resolvedAt,
+      });
     }
 
     const now = new Date().toISOString();
@@ -125,6 +139,18 @@ export class MasteryService {
       createdAt: now,
     };
     this.snapshots.push(snapshot);
+    await supabasePersistence.persistMasterySnapshot({
+      userId: snapshot.userId,
+      learningGoalId: snapshot.learningGoalId,
+      competencyId: snapshot.competencyId,
+      masteryScore: snapshot.masteryScore,
+      masteryState: snapshot.masteryState,
+      confidence: snapshot.confidenceScore,
+      snapshotReason: snapshot.snapshotReason,
+      calculationVersion: snapshot.calculationVersion,
+      evidenceSummary: snapshot.evidenceSummary,
+      createdAt: snapshot.createdAt,
+    });
 
     return { masteryOutput, gap, snapshot };
   }

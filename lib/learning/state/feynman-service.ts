@@ -5,6 +5,7 @@ import { getCompetencyById } from "../curriculum";
 import { evaluateFeynmanExplanationWithAI } from "@/lib/ai/feynman";
 import { FeynmanEvaluation, FEYNMAN_RUBRIC_VERSION } from "../feynman/rubric";
 import { MasteryCalculationOutput } from "../mastery";
+import { supabasePersistence } from "@/lib/db/supabase-persistence";
 
 export interface FeynmanSessionEntity {
   id: string;
@@ -74,6 +75,7 @@ export class FeynmanService {
     };
 
     this.sessions.set(session.id, session);
+    await supabasePersistence.persistFeynmanSession(session);
     return session;
   }
 
@@ -135,6 +137,7 @@ export class FeynmanService {
     session.evaluation = evaluation;
     session.status = "EVALUATED";
     session.evaluatedAt = new Date().toISOString();
+    await supabasePersistence.persistFeynmanSession(session);
 
     // Append-only Evidence Recording (§7)
     // Only real evaluated outcome becomes evidence

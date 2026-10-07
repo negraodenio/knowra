@@ -10,6 +10,7 @@ import {
 } from "../diagnostic/types";
 import { evaluateDiagnosticItem, aggregateDiagnosticReport } from "../diagnostic/evaluator";
 import { EvidenceRecord, getMasteryState, MasteryState } from "../types";
+import { supabasePersistence } from "@/lib/db/supabase-persistence";
 
 export class UnauthorizedAccessError extends Error {
   constructor(message = "Unauthorized: Access denied to requested learner resource.") {
@@ -133,7 +134,11 @@ export class LearningStateService {
       updatedAt: now,
     };
 
+    this.goals.set(goalId, goal);
     this.profiles.set(userId, profile);
+
+    await supabasePersistence.persistGoal(goal);
+    await supabasePersistence.persistProfile(profile);
 
     return { goal, profile };
   }
@@ -185,6 +190,7 @@ export class LearningStateService {
 
     this.sessions.set(sessionId, session);
     this.responses.set(sessionId, []);
+    await supabasePersistence.persistDiagnosticSession(session);
 
     return { session, items };
   }
@@ -239,6 +245,8 @@ export class LearningStateService {
     }
     this.responses.set(sessionId, sessionResponses);
 
+    await supabasePersistence.persistDiagnosticResponse(response);
+
     return response;
   }
 
@@ -285,6 +293,8 @@ export class LearningStateService {
     session.completedAt = now;
     session.overallBaselineScore = report.overallBaselineScore;
 
+    await supabasePersistence.persistDiagnosticSession(session);
+
     // 1. Create append-only Evidence records for each response (§14, §15)
     for (const resp of responses) {
       const evidence: EvidenceRecord = {
@@ -307,6 +317,20 @@ export class LearningStateService {
       };
 
       this.evidenceRecords.push(evidence);
+      await supabasePersistence.persistEvidence({
+        id: evidence.id,
+        userId,
+        learningGoalId: session.learningGoalId,
+        competencyId: evidence.competencyId,
+        evidenceType: evidence.evidenceType,
+        result: evidence.result,
+        score: evidence.score,
+        confidence: evidence.confidence,
+        source: evidence.source,
+        mapVersion: session.mapVersion,
+        metadata: evidence.metadata as Record<string, unknown>,
+        timestamp: evidence.timestamp,
+      });
     }
 
     // 2. Persist baseline into Competency States (§18, §19, §44)
@@ -319,6 +343,7 @@ export class LearningStateService {
         existingState.evidenceCount += compBase.evidenceCount;
         existingState.lastEvidenceAt = now;
         existingState.updatedAt = now;
+        await supabasePersistence.persistCompetencyState(existingState);
       } else {
         const state: CompetencyStateEntity = {
           id: uuidv4(),
@@ -334,6 +359,7 @@ export class LearningStateService {
           updatedAt: now,
         };
         this.competencyStates.set(stateKey, state);
+        await supabasePersistence.persistCompetencyState(state);
       }
     }
 
@@ -359,8 +385,7 @@ export class LearningStateService {
     }
 
     const now = new Date().toISOString();
-    // Append evidence
-    this.evidenceRecords.push({
+    const evidence: EvidenceRecord = {
       id: uuidv4(),
       learnerId: userId,
       competencyId,
@@ -372,6 +397,20 @@ export class LearningStateService {
       timestamp: now,
       metadata: { goalId },
       version: 1,
+    };
+    this.evidenceRecords.push(evidence);
+    await supabasePersistence.persistEvidence({
+      id: evidence.id,
+      userId,
+      learningGoalId: goalId,
+      competencyId,
+      evidenceType: evidence.evidenceType,
+      result: evidence.result,
+      score: evidence.score,
+      confidence: evidence.confidence,
+      source: evidence.source,
+      timestamp: now,
+      metadata: { goalId },
     });
 
     // Update current score, but CRITICALLY PRESERVE baselineScore (§44)
@@ -379,6 +418,7 @@ export class LearningStateService {
     state.evidenceCount += 1;
     state.lastEvidenceAt = now;
     state.updatedAt = now;
+    await supabasePersistence.persistCompetencyState(state);
   }
 
   /**
@@ -398,7 +438,7 @@ export class LearningStateService {
     const state = this.competencyStates.get(stateKey);
     const now = new Date().toISOString();
 
-    this.evidenceRecords.push({
+    const evidence: EvidenceRecord = {
       id: uuidv4(),
       learnerId: userId,
       competencyId,
@@ -410,12 +450,27 @@ export class LearningStateService {
       timestamp: now,
       metadata: { ...metadata, goalId },
       version: 1,
+    };
+    this.evidenceRecords.push(evidence);
+    await supabasePersistence.persistEvidence({
+      id: evidence.id,
+      userId,
+      learningGoalId: goalId,
+      competencyId,
+      evidenceType: evidence.evidenceType,
+      result: evidence.result,
+      score: evidence.score,
+      confidence: evidence.confidence,
+      source: evidence.source,
+      timestamp: now,
+      metadata: { ...metadata, goalId },
     });
 
     if (state) {
       state.evidenceCount += 1;
       state.lastEvidenceAt = now;
       state.updatedAt = now;
+      await supabasePersistence.persistCompetencyState(state);
     }
   }
 
@@ -436,7 +491,7 @@ export class LearningStateService {
     const state = this.competencyStates.get(stateKey);
     const now = new Date().toISOString();
 
-    this.evidenceRecords.push({
+    const evidence: EvidenceRecord = {
       id: uuidv4(),
       learnerId: userId,
       competencyId,
@@ -448,12 +503,27 @@ export class LearningStateService {
       timestamp: now,
       metadata: { ...metadata, goalId },
       version: 1,
+    };
+    this.evidenceRecords.push(evidence);
+    await supabasePersistence.persistEvidence({
+      id: evidence.id,
+      userId,
+      learningGoalId: goalId,
+      competencyId,
+      evidenceType: evidence.evidenceType,
+      result: evidence.result,
+      score: evidence.score,
+      confidence: evidence.confidence,
+      source: evidence.source,
+      timestamp: now,
+      metadata: { ...metadata, goalId },
     });
 
     if (state) {
       state.evidenceCount += 1;
       state.lastEvidenceAt = now;
       state.updatedAt = now;
+      await supabasePersistence.persistCompetencyState(state);
     }
   }
 
@@ -551,6 +621,7 @@ export class LearningStateService {
       existing.masteryState = masteryState;
       existing.confidenceScore = confidenceScore;
       existing.updatedAt = now;
+      await supabasePersistence.persistCompetencyState(existing);
       return existing;
     } else {
       const state: CompetencyStateEntity = {
@@ -567,6 +638,7 @@ export class LearningStateService {
         updatedAt: now,
       };
       this.competencyStates.set(stateKey, state);
+      await supabasePersistence.persistCompetencyState(state);
       return state;
     }
   }

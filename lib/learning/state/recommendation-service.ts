@@ -19,6 +19,7 @@ import { generateAdaptiveLearningPlan, AdaptiveLearningPlan } from "../learning-
 import { LearningGap } from "../gap-analysis";
 import { reviewService } from "./review-service";
 import { getScheduler } from "../spaced-repetition/scheduler";
+import { supabasePersistence } from "@/lib/db/supabase-persistence";
 
 
 /**
@@ -162,6 +163,20 @@ export class RecommendationService {
     };
 
     this.recommendations.set(newRecommendation.id, newRecommendation);
+    await supabasePersistence.persistRecommendation({
+      id: newRecommendation.id,
+      userId: newRecommendation.userId,
+      learningGoalId: newRecommendation.learningGoalId,
+      action: newRecommendation.action,
+      competencyId: newRecommendation.competencyId,
+      priority: newRecommendation.priority,
+      reason: newRecommendation.reason,
+      estimatedMinutes: newRecommendation.estimatedMinutes,
+      status: newRecommendation.status,
+      algorithmVersion: newRecommendation.algorithmVersion,
+      createdAt: newRecommendation.generatedAt,
+      updatedAt: newRecommendation.generatedAt,
+    });
     return newRecommendation;
   }
 
@@ -180,6 +195,21 @@ export class RecommendationService {
     if (rec.status === "PENDING") {
       rec.status = "PRESENTED";
       rec.presentedAt = new Date().toISOString();
+      await supabasePersistence.persistRecommendation({
+        id: rec.id,
+        userId: rec.userId,
+        learningGoalId: rec.learningGoalId,
+        action: rec.action,
+        competencyId: rec.competencyId,
+        priority: rec.priority,
+        reason: rec.reason,
+        estimatedMinutes: rec.estimatedMinutes,
+        status: rec.status,
+        algorithmVersion: rec.algorithmVersion,
+        createdAt: rec.generatedAt,
+        updatedAt: rec.presentedAt,
+        presentedAt: rec.presentedAt,
+      });
     }
 
     return rec;
@@ -201,6 +231,21 @@ export class RecommendationService {
     if (rec.status === "PENDING" || rec.status === "PRESENTED") {
       rec.status = "ACCEPTED";
       rec.acceptedAt = new Date().toISOString();
+      await supabasePersistence.persistRecommendation({
+        id: rec.id,
+        userId: rec.userId,
+        learningGoalId: rec.learningGoalId,
+        action: rec.action,
+        competencyId: rec.competencyId,
+        priority: rec.priority,
+        reason: rec.reason,
+        estimatedMinutes: rec.estimatedMinutes,
+        status: rec.status,
+        algorithmVersion: rec.algorithmVersion,
+        createdAt: rec.generatedAt,
+        updatedAt: rec.acceptedAt,
+        acceptedAt: rec.acceptedAt,
+      });
     }
 
     return rec;
@@ -220,6 +265,21 @@ export class RecommendationService {
 
     rec.status = "SKIPPED";
     rec.skippedAt = new Date().toISOString();
+    await supabasePersistence.persistRecommendation({
+      id: rec.id,
+      userId: rec.userId,
+      learningGoalId: rec.learningGoalId,
+      action: rec.action,
+      competencyId: rec.competencyId,
+      priority: rec.priority,
+      reason: rec.reason,
+      estimatedMinutes: rec.estimatedMinutes,
+      status: rec.status,
+      algorithmVersion: rec.algorithmVersion,
+      createdAt: rec.generatedAt,
+      updatedAt: rec.skippedAt,
+      skippedAt: rec.skippedAt,
+    });
 
     return rec;
   }
@@ -239,6 +299,21 @@ export class RecommendationService {
 
     rec.status = "COMPLETED";
     rec.completedAt = new Date().toISOString();
+    await supabasePersistence.persistRecommendation({
+      id: rec.id,
+      userId: rec.userId,
+      learningGoalId: rec.learningGoalId,
+      action: rec.action,
+      competencyId: rec.competencyId,
+      priority: rec.priority,
+      reason: rec.reason,
+      estimatedMinutes: rec.estimatedMinutes,
+      status: rec.status,
+      algorithmVersion: rec.algorithmVersion,
+      createdAt: rec.generatedAt,
+      updatedAt: rec.completedAt,
+      completedAt: rec.completedAt,
+    });
 
     return rec;
   }
