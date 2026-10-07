@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { NextBestActionView } from "./components/next-best-action-view";
 
 interface CompetencyBaseline {
   competencyId: string;
@@ -33,6 +34,7 @@ export function DiagnosticFlow() {
   const [error, setError] = useState<string | null>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [goalId, setGoalId] = useState<string | null>(null);
   const [items, setItems] = useState<DiagnosticItem[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [report, setReport] = useState<DiagnosticReport | null>(null);
@@ -55,6 +57,8 @@ export function DiagnosticFlow() {
       });
       if (!goalRes.ok) throw new Error("Failed to create goal");
       const { goal } = await goalRes.json();
+      setGoalId(goal.id);
+
 
       // 2. Start diagnostic
       const diagRes = await fetch("/api/diagnostic/start", {
@@ -300,12 +304,20 @@ export function DiagnosticFlow() {
             </div>
           </div>
 
+          {/* Sprint 5: Next Best Action Recommendation Component (§46, §47) */}
+          {goalId && (
+            <div className="pt-2">
+              <NextBestActionView goalId={goalId} userId={testUserId} />
+            </div>
+          )}
+
           <button
             onClick={() => setStep("SELECT_GOAL")}
             className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition"
           >
             Start New Diagnostic
           </button>
+
         </div>
       )}
     </div>

@@ -286,6 +286,114 @@ export class PrerequisiteGraph {
     return eligible;
   }
 
+  /**
+   * Evaluates all direct prerequisites that are currently blocking progression on a competency (§19).
+   */
+  getBlockingPrerequisites(
+    competencyId: string,
+    states: Map<string, { masteryScore: number; confidenceScore: number }>,
+    openGaps?: Map<string, { severity: string; status: string }>,
+    config: PrerequisiteBlockConfig = DEFAULT_PREREQUISITE_BLOCK_CONFIG
+  ): PrerequisiteBlockReason[] {
+    const directPrereqs = this.getDirectPrerequisites(competencyId);
+    const blockers: PrerequisiteBlockReason[] = [];
+
+    for (const prereqId of directPrereqs) {
+      const state = states.get(prereqId);
+      const gap = openGaps?.get(prereqId);
+
+      // Check open gap blocker
+      if (
+        gap &&
+        gap.status === "OPEN" &&
+        config.blockingGapSeverities.includes(gap.severity as "CRITICAL" | "HIGH" | "MEDIUM" | "LOW")
+      ) {
+
+        blockers.push({
+          prerequisiteId: prereqId,
+          reason: `Prerequisite '${prereqId}' has an active ${gap.severity} gap.`,
+          masteryScore: state?.masteryScore ?? 0,
+          confidenceScore: state?.confidenceScore ?? 0,
+          gapSeverity: gap.severity,
+        });
+        continue;
+      }
+
+      // Check mastery threshold blocker
+      const mastery = state?.masteryScore ?? 0;
+      if (mastery < config.minimumMastery) {
+        blockers.push({
+          prerequisiteId: prereqId,
+          reason: `Prerequisite '${prereqId}' mastery (${mastery.toFixed(0)}%) is below threshold (${config.minimumMastery}%).`,
+          masteryScore: mastery,
+          confidenceScore: state?.confidenceScore ?? 0,
+        });
+        continue;
+      }
+
+      // Check confidence threshold blocker
+      const confidence = state?.confidenceScore ?? 0;
+      if (confidence < config.minimumConfidence) {
+        blockers.push({
+          prerequisiteId: prereqId,
+          reason: `Prerequisite '${prereqId}' confidence (${(confidence * 100).toFixed(0)}%) is below threshold (${(config.minimumConfidence * 100).toFixed(0)}%).`,
+          masteryScore: mastery,
+          confidenceScore: confidence,
+        });
+      }
+    }
+
+    return blockers;
+  }
+
+  /**
+   * Checks whether a competency is currently blocked by one or more unsatisfied prerequisites (§19).
+   */
+  isBlockedByPrerequisite(
+    competencyId: string,
+    states: Map<string, { masteryScore: number; confidenceScore: number }>,
+    openGaps?: Map<string, { severity: string; status: string }>,
+    config: PrerequisiteBlockConfig = DEFAULT_PREREQUISITE_BLOCK_CONFIG
+  ): boolean {
+    return this.getBlockingPrerequisites(competencyId, states, openGaps, config).length > 0;
+  }
+
+  /**
+   * Retrieves all competencies in the graph that are unblocked and ready for learning or practice (§19).
+   */
+  getEligibleCompetencies(
+    states: Map<string, { masteryScore: number; confidenceScore: number }>,
+    openGaps?: Map<string, { severity: string; status: string }>,
+    config: PrerequisiteBlockConfig = DEFAULT_PREREQUISITE_BLOCK_CONFIG
+  ): Competency[] {
+    const eligible: Competency[] = [];
+
+    for (const [id, comp] of this.competencies.entries()) {
+      const state = states.get(id);
+      const isMastered =
+        state &&
+        state.masteryScore >= config.minimumMastery &&
+        state.confidenceScore >= config.minimumConfidence &&
+        (!openGaps?.get(id) || openGaps.get(id)?.status !== "OPEN");
+
+      // Skip already satisfied competencies
+      if (isMastered) continue;
+
+      if (!this.isBlockedByPrerequisite(id, states, openGaps, config)) {
+        eligible.push(comp);
+      }
+    }
+
+    eligible.sort((a, b) => {
+      if (a.difficulty !== b.difficulty) {
+        return a.difficulty - b.difficulty;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return eligible;
+  }
+
   private sortNodes(nodeIds: string[]): void {
     nodeIds.sort((a, b) => {
       const compA = this.competencies.get(a);
@@ -297,3 +405,24 @@ export class PrerequisiteGraph {
     });
   }
 }
+
+export interface PrerequisiteBlockConfig {
+  minimumMastery: number; // default: 75
+  minimumConfidence: number; // default: 0.65
+  blockingGapSeverities: Array<"CRITICAL" | "HIGH" | "MEDIUM" | "LOW">; // default: ["CRITICAL", "HIGH"]
+}
+
+export const DEFAULT_PREREQUISITE_BLOCK_CONFIG: PrerequisiteBlockConfig = {
+  minimumMastery: 75,
+  minimumConfidence: 0.65,
+  blockingGapSeverities: ["CRITICAL", "HIGH"],
+};
+
+export interface PrerequisiteBlockReason {
+  prerequisiteId: string;
+  reason: string;
+  masteryScore?: number;
+  confidenceScore?: number;
+  gapSeverity?: string;
+}
+

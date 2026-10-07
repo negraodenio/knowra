@@ -10,21 +10,22 @@ export default function HomePage() {
             <p className="text-sm text-slate-400">Universal Adaptive Learning Platform</p>
           </div>
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            Sprint 3: Diagnostic &amp; Learner State
+            Sprint 5: Adaptive Loop &amp; Next Best Action
           </span>
         </div>
 
         <p className="text-slate-300 leading-relaxed text-sm">
-          Core architectural thesis: <em>LLMs know things. The Learning Engine knows what the learner knows.</em> S3 establishes the initial baseline state through calibrated diagnostic evidence across the 3 curated MVP domains.
+          Core architectural thesis: <em>LLMs know things. The Learning Engine knows what the learner knows, and what they should do next.</em> S5 closes the adaptive loop with deterministic Next Best Action recommendations, dynamic learning planning, and acceptance tracking.
         </p>
 
         {/* Minimal Learner Diagnostic Flow (§38) */}
         <DiagnosticFlow />
 
         <div className="pt-4 text-xs text-slate-500 flex justify-between items-center border-t border-slate-800">
-          <span>Sprint: S3 Diagnostic + Learning State</span>
+          <span>Sprint: S5 Adaptive Loop &amp; Next Best Action</span>
           <span>Status: Verified</span>
         </div>
+
       </div>
     </main>
   );

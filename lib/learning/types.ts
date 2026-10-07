@@ -45,17 +45,52 @@ export const NextBestActionSchema = z.enum([
 ]);
 export type NextBestAction = z.infer<typeof NextBestActionSchema>;
 
+export const RecommendationStatusSchema = z.enum([
+  "PENDING",
+  "PRESENTED",
+  "ACCEPTED",
+  "SKIPPED",
+  "COMPLETED",
+  "EXPIRED",
+]);
+export type RecommendationStatus = z.infer<typeof RecommendationStatusSchema>;
+
 /**
- * Recommendation Output Schema (§19, §20)
+ * Recommendation Output Schema (§13, §15, §19, §20)
+ * Uses consistent 0–100 scale for priority score.
  */
 export const RecommendationSchema = z.object({
+  id: z.string().uuid().optional(),
   action: NextBestActionSchema,
   competencyId: z.string(),
-  priority: z.number().min(0).max(1),
+  priority: z.number().min(0).max(100),
   reason: z.string().min(1),
   estimatedMinutes: z.number().positive(),
+  status: RecommendationStatusSchema.default("PENDING"),
+  algorithmVersion: z.string().default("v1"),
+  generatedAt: z.string().datetime().optional(),
 });
 export type Recommendation = z.infer<typeof RecommendationSchema>;
+
+export const RecommendationEntitySchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  learningGoalId: z.string().uuid(),
+  competencyId: z.string(),
+  action: NextBestActionSchema,
+  priority: z.number().min(0).max(100),
+  reason: z.string().min(1),
+  estimatedMinutes: z.number().positive(),
+  status: RecommendationStatusSchema,
+  algorithmVersion: z.string().default("v1"),
+  generatedAt: z.string().datetime(),
+  presentedAt: z.string().datetime().optional(),
+  acceptedAt: z.string().datetime().optional(),
+  skippedAt: z.string().datetime().optional(),
+  completedAt: z.string().datetime().optional(),
+});
+export type RecommendationEntity = z.infer<typeof RecommendationEntitySchema>;
+
 
 /**
  * Evidence Model (§14, §15)
