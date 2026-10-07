@@ -1,0 +1,104 @@
+import { z } from "zod";
+
+/**
+ * Learning Outcome Taxonomies (§7)
+ */
+export const CompetencyCategorySchema = z.enum(["CONCEPTUAL", "PROCEDURAL", "FACTUAL"]);
+export type CompetencyCategory = z.infer<typeof CompetencyCategorySchema>;
+
+/**
+ * Mastery States (§16)
+ * 0–39   = CRITICAL
+ * 40–59  = LOW
+ * 60–74  = DEVELOPING
+ * 75–89  = GOOD
+ * 90–100 = MASTERY
+ */
+export const MasteryStateSchema = z.enum([
+  "CRITICAL",
+  "LOW",
+  "DEVELOPING",
+  "GOOD",
+  "MASTERY",
+]);
+export type MasteryState = z.infer<typeof MasteryStateSchema>;
+
+export function getMasteryState(score: number): MasteryState {
+  if (score < 40) return "CRITICAL";
+  if (score < 60) return "LOW";
+  if (score < 75) return "DEVELOPING";
+  if (score < 90) return "GOOD";
+  return "MASTERY";
+}
+
+/**
+ * Next Best Action Taxonomy (§20)
+ */
+export const NextBestActionSchema = z.enum([
+  "LEARN",
+  "PRACTICE",
+  "FEYNMAN",
+  "REVIEW",
+  "REMEDIATE",
+  "RETRY",
+  "ADVANCE",
+]);
+export type NextBestAction = z.infer<typeof NextBestActionSchema>;
+
+/**
+ * Recommendation Output Schema (§19, §20)
+ */
+export const RecommendationSchema = z.object({
+  action: NextBestActionSchema,
+  competencyId: z.string(),
+  priority: z.number().min(0).max(1),
+  reason: z.string().min(1),
+  estimatedMinutes: z.number().positive(),
+});
+export type Recommendation = z.infer<typeof RecommendationSchema>;
+
+/**
+ * Evidence Model (§14, §15)
+ */
+export const EvidenceTypeSchema = z.enum([
+  "DIAGNOSTIC",
+  "EXERCISE",
+  "PRACTICE",
+  "FEYNMAN",
+  "REVIEW",
+  "APPLICATION",
+  "FINAL_ASSESSMENT",
+]);
+export type EvidenceType = z.infer<typeof EvidenceTypeSchema>;
+
+export const EvidenceRecordSchema = z.object({
+  id: z.string().uuid().optional(),
+  learnerId: z.string().uuid(),
+  competencyId: z.string(),
+  evidenceType: EvidenceTypeSchema,
+  result: z.enum(["SUCCESS", "FAILURE", "PARTIAL"]),
+  score: z.number().min(0).max(100),
+  confidence: z.number().min(0).max(1),
+  source: z.string(),
+  timestamp: z.string().datetime().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  version: z.number().int().positive().default(1),
+});
+export type EvidenceRecord = z.infer<typeof EvidenceRecordSchema>;
+
+/**
+ * Competency Schema (§8)
+ */
+export const CompetencySchema = z.object({
+  id: z.string(),
+  domainId: z.string(),
+  title: z.string(),
+  description: z.string(),
+  category: CompetencyCategorySchema,
+  prerequisites: z.array(z.string()).default([]),
+  difficulty: z.number().min(1).max(5).default(1),
+  version: z.number().int().positive().default(1),
+  status: z.enum(["DRAFT", "ACTIVE", "DEPRECATED"]).default("ACTIVE"),
+  provenance: z.enum(["CURATED", "AI_GENERATED"]).default("CURATED"),
+});
+export type Competency = z.infer<typeof CompetencySchema>;
