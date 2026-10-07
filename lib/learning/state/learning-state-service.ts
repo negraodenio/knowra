@@ -381,7 +381,84 @@ export class LearningStateService {
     state.updatedAt = now;
   }
 
+  /**
+   * Appends Feynman explanation evidence (§7)
+   */
+  async recordFeynmanEvidence(
+    userId: string,
+    goalId: string,
+    competencyId: string,
+    score: number,
+    confidence = 0.8,
+    metadata: Record<string, unknown> = {}
+  ): Promise<void> {
+    await this.getGoal(userId, goalId);
+
+    const stateKey = `${userId}:${goalId}:${competencyId}`;
+    const state = this.competencyStates.get(stateKey);
+    const now = new Date().toISOString();
+
+    this.evidenceRecords.push({
+      id: uuidv4(),
+      learnerId: userId,
+      competencyId,
+      evidenceType: "FEYNMAN",
+      result: score >= 70 ? "SUCCESS" : score >= 50 ? "PARTIAL" : "FAILURE",
+      score,
+      confidence,
+      source: "feynman-explanation",
+      timestamp: now,
+      metadata: { ...metadata, goalId },
+      version: 1,
+    });
+
+    if (state) {
+      state.evidenceCount += 1;
+      state.lastEvidenceAt = now;
+      state.updatedAt = now;
+    }
+  }
+
+  /**
+   * Appends Spaced Repetition review evidence (§14)
+   */
+  async recordReviewEvidence(
+    userId: string,
+    goalId: string,
+    competencyId: string,
+    score: number,
+    confidence = 0.8,
+    metadata: Record<string, unknown> = {}
+  ): Promise<void> {
+    await this.getGoal(userId, goalId);
+
+    const stateKey = `${userId}:${goalId}:${competencyId}`;
+    const state = this.competencyStates.get(stateKey);
+    const now = new Date().toISOString();
+
+    this.evidenceRecords.push({
+      id: uuidv4(),
+      learnerId: userId,
+      competencyId,
+      evidenceType: "REVIEW",
+      result: score >= 70 ? "SUCCESS" : "FAILURE",
+      score,
+      confidence,
+      source: "spaced-repetition-review",
+      timestamp: now,
+      metadata: { ...metadata, goalId },
+      version: 1,
+    });
+
+    if (state) {
+      state.evidenceCount += 1;
+      state.lastEvidenceAt = now;
+      state.updatedAt = now;
+    }
+  }
+
   // --- QUERY METHODS (§26) ---
+
 
   async getLearningProfile(userId: string, goalId?: string): Promise<LearningProfileEntity> {
     if (goalId) {

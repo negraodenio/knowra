@@ -12,10 +12,14 @@ import {
   LearnerObjectiveContext,
   RecommendationContext,
   RECOMMENDATION_ALGORITHM_VERSION,
+  ReviewDueInfo,
 } from "../recommendations";
 import { calculateNextBestAction } from "../next-best-action";
 import { generateAdaptiveLearningPlan, AdaptiveLearningPlan } from "../learning-plan";
 import { LearningGap } from "../gap-analysis";
+import { reviewService } from "./review-service";
+import { getScheduler } from "../spaced-repetition/scheduler";
+
 
 /**
  * RecommendationService (§13, §27–33, §49, §56, §57)
@@ -89,7 +93,19 @@ export class RecommendationService {
       deadline: parsedObjective.deadline,
     };
 
-    // 6. Build recommendation context
+    // 6. Fetch active spaced repetition reviews due (§20)
+    const dueReviews = await reviewService.getReviewQueue(userId, goalId, 50, referenceDate);
+    const dueReviewMap = new Map<string, ReviewDueInfo>();
+    for (const r of dueReviews) {
+      const scheduler = getScheduler(r.schedulerType);
+      dueReviewMap.set(r.competencyId, {
+        isDue: true,
+        retrievability: scheduler.getRetrievability(r.schedulerState, referenceDate),
+        dueAt: r.dueAt,
+      });
+    }
+
+    // 7. Build recommendation context
     const context: RecommendationContext = {
       userId,
       learningGoalId: goalId,
@@ -98,11 +114,13 @@ export class RecommendationService {
       gaps: gapsMap,
       prerequisiteGraph: graph,
       allCompetencies,
+      dueReviewItems: dueReviewMap,
       referenceDate,
     };
 
-    // 7. Calculate fresh Next Best Action using pure engine (§59)
+    // 8. Calculate fresh Next Best Action using pure engine (§59)
     const decision = calculateNextBestAction(context);
+
     const freshCandidate = decision.recommendation;
 
     // 8. Stale Recommendation Handling (§56, §57, §63)
@@ -274,6 +292,17 @@ export class RecommendationService {
       // Use defaults
     }
 
+    const dueReviews = await reviewService.getReviewQueue(userId, goalId, 50, referenceDate);
+    const dueReviewMap = new Map<string, ReviewDueInfo>();
+    for (const r of dueReviews) {
+      const scheduler = getScheduler(r.schedulerType);
+      dueReviewMap.set(r.competencyId, {
+        isDue: true,
+        retrievability: scheduler.getRetrievability(r.schedulerState, referenceDate),
+        dueAt: r.dueAt,
+      });
+    }
+
     const context: RecommendationContext = {
       userId,
       learningGoalId: goalId,
@@ -288,10 +317,12 @@ export class RecommendationService {
       gaps: gapsMap,
       prerequisiteGraph: graph,
       allCompetencies,
+      dueReviewItems: dueReviewMap,
       referenceDate,
     };
 
     return generateAdaptiveLearningPlan(context);
+
   }
 
   /**

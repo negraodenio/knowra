@@ -94,15 +94,19 @@ export function calculateNextBestAction(
     const downstreamDependents = prerequisiteGraph.getAllDependents(comp.id);
     const downstreamCount = downstreamDependents.length;
 
-    // Evaluate appropriate action deterministically
+    const reviewInfo = context.dueReviewItems?.get(comp.id);
+
+    // Evaluate appropriate action deterministically (§20, §21, §22)
     const actionEval = evaluateActionForCompetency(
       comp,
       state,
       gap,
       downstreamCount,
       referenceDate,
-      prereqThresholds
+      prereqThresholds,
+      reviewInfo
     );
+
 
     // Calculate deterministic priority score (0–100)
     const priorityResult = calculatePriorityScore(

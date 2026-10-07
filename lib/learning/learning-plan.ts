@@ -95,14 +95,17 @@ export function generateAdaptiveLearningPlan(
     const downstreamDependents = prerequisiteGraph.getAllDependents(compId);
     const downstreamCount = downstreamDependents.length;
 
+    const reviewInfo = context.dueReviewItems?.get(compId);
     const actionEval = evaluateActionForCompetency(
       comp,
       state,
       gap,
       downstreamCount,
       referenceDate,
-      prereqThresholds
+      prereqThresholds,
+      reviewInfo
     );
+
 
     const priorityResult = calculatePriorityScore(
       comp,

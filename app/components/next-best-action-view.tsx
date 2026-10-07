@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { RecommendationEntity } from "@/lib/learning/types";
 import { AdaptiveLearningPlan } from "@/lib/learning/learning-plan";
+import { FeynmanSessionView } from "./feynman-session-view";
+import { ReviewSessionView } from "./review-session-view";
+
 
 interface NextBestActionViewProps {
   goalId: string;
@@ -242,19 +245,41 @@ export function NextBestActionView({
             )}
 
             {recommendation.status === "ACCEPTED" && (
-              <div className="w-full flex items-center justify-between bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
-                <span className="text-xs text-blue-300">
-                  Recommendation accepted. Activity in progress.
-                </span>
-                <button
-                  onClick={handleComplete}
-                  disabled={actionInProgress}
-                  className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition"
-                >
-                  Complete Activity
-                </button>
+              <div className="w-full space-y-4">
+                {recommendation.action === "FEYNMAN" && (
+                  <FeynmanSessionView
+                    goalId={goalId}
+                    competencyId={recommendation.competencyId}
+                    userId={userId}
+                    onEvaluationComplete={handleComplete}
+                  />
+                )}
+
+                {recommendation.action === "REVIEW" && (
+                  <ReviewSessionView
+                    goalId={goalId}
+                    userId={userId}
+                    onReviewComplete={handleComplete}
+                  />
+                )}
+
+                {recommendation.action !== "FEYNMAN" && recommendation.action !== "REVIEW" && (
+                  <div className="w-full flex items-center justify-between bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
+                    <span className="text-xs text-blue-300">
+                      Recommendation accepted. Practice activity in progress.
+                    </span>
+                    <button
+                      onClick={handleComplete}
+                      disabled={actionInProgress}
+                      className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition"
+                    >
+                      Complete Activity
+                    </button>
+                  </div>
+                )}
               </div>
             )}
+
 
             {recommendation.status === "COMPLETED" && (
               <div className="w-full text-center text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">

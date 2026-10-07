@@ -86,6 +86,12 @@ export interface LearnerObjectiveContext {
 }
 
 
+export interface ReviewDueInfo {
+  isDue: boolean;
+  retrievability?: number;
+  dueAt?: string;
+}
+
 export interface RecommendationContext {
   userId: string;
   learningGoalId: string;
@@ -96,6 +102,7 @@ export interface RecommendationContext {
   allCompetencies?: Competency[];
   weightsConfig?: RecommendationWeightsConfig;
   prereqThresholds?: PrerequisiteBlockConfig;
+  dueReviewItems?: Map<string, ReviewDueInfo>;
   referenceDate?: Date;
 }
 
@@ -119,7 +126,7 @@ export interface CandidateRecommendation {
 }
 
 /**
- * Pure Deterministic Action Evaluator for a specific competency (§5–12, §35–42)
+ * Pure Deterministic Action Evaluator for a specific competency (§5–12, §20–22, §35–42)
  */
 export function evaluateActionForCompetency(
   comp: Competency,
@@ -127,7 +134,8 @@ export function evaluateActionForCompetency(
   gap: LearningGap | undefined,
   downstreamCount: number,
   referenceDate: Date = new Date(),
-  prereqThresholds: PrerequisiteBlockConfig = DEFAULT_PREREQUISITE_BLOCK_CONFIG
+  prereqThresholds: PrerequisiteBlockConfig = DEFAULT_PREREQUISITE_BLOCK_CONFIG,
+  reviewInfo?: ReviewDueInfo
 ): { action: NextBestAction; reason: string; estimatedMinutes: number } {
   const mastery = state?.masteryScore ?? 0;
   const confidence = state?.confidenceScore ?? 0;
@@ -135,7 +143,8 @@ export function evaluateActionForCompetency(
   const lastResult = state?.lastEvidenceResult;
   const lastScore = state?.lastEvidenceScore;
 
-  // 1. OPEN GAP -> REMEDIATE (§6, §38)
+  // 1. OPEN GAP -> REMEDIATE (§6, §21, §38)
+  // Remediation strictly outranks review and ordinary progression when an active gap exists
   if (gap && gap.status === "OPEN") {
     const signalsCount = gap.signals?.length || 2;
     const downstreamText =
@@ -164,7 +173,21 @@ export function evaluateActionForCompetency(
     };
   }
 
-  // 3. KNOWLEDGE DECAY / RETENTION REVIEW DUE -> REVIEW (§8)
+  // 3. SCHEDULED SPACED REPETITION REVIEW DUE -> REVIEW (§8, §19, §20, §21)
+  if (reviewInfo && reviewInfo.isDue) {
+    const retrievabilityText =
+      reviewInfo.retrievability !== undefined
+        ? ` (retrievability: ${(reviewInfo.retrievability * 100).toFixed(0)}%)`
+        : "";
+    const reason = `${comp.title} is due for spaced repetition review${retrievabilityText}. Timely retrieval will consolidate memory stability.`;
+    return {
+      action: "REVIEW",
+      reason,
+      estimatedMinutes: DEFAULT_ESTIMATED_MINUTES.REVIEW,
+    };
+  }
+
+  // 4. KNOWLEDGE DECAY FALLBACK -> REVIEW (§8)
   // If mastery was previously good/developing (>= 65), but evidence is old (> 14 days)
   if (mastery >= 65 && state?.lastEvidenceAt) {
     const lastDate = new Date(state.lastEvidenceAt);
@@ -178,6 +201,7 @@ export function evaluateActionForCompetency(
       };
     }
   }
+
 
   // 4. CONFLICTING STATE: HIGH MASTERY BUT LOW CONFIDENCE (§36)
   // If mastery satisfies threshold (>= 75) but confidence is weak (< 0.65)
