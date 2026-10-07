@@ -66,7 +66,10 @@ export interface CurrentLearningStateView {
   competencies: Array<{
     competencyId: string;
     baselineScore: number;
+    masteryScore: number;
+    masteryState: MasteryState;
     confidence: number;
+    confidenceScore: number;
     evidenceCount: number;
     lastEvidenceAt: string;
   }>;
@@ -438,6 +441,59 @@ export class LearningStateService {
     );
   }
 
+  async getAllEvidence(
+    userId: string,
+    goalId?: string
+  ): Promise<EvidenceRecord[]> {
+    if (goalId) {
+      await this.getGoal(userId, goalId); // Ownership check
+    }
+
+    return this.evidenceRecords.filter(
+      (e) => e.learnerId === userId && (!goalId || (e.metadata as Record<string, unknown>)?.goalId === goalId)
+    );
+  }
+
+  async updateCompetencyMastery(
+    userId: string,
+    goalId: string,
+    competencyId: string,
+    masteryScore: number,
+    masteryState: MasteryState,
+    confidenceScore: number
+  ): Promise<CompetencyStateEntity> {
+    await this.getGoal(userId, goalId); // Ownership check
+
+    const stateKey = `${userId}:${goalId}:${competencyId}`;
+    const now = new Date().toISOString();
+    const existing = this.competencyStates.get(stateKey);
+
+    if (existing) {
+      // PRESERVATION RULE (§4, §54): Never overwrite existing baselineScore
+      existing.currentScore = masteryScore;
+      existing.masteryState = masteryState;
+      existing.confidenceScore = confidenceScore;
+      existing.updatedAt = now;
+      return existing;
+    } else {
+      const state: CompetencyStateEntity = {
+        id: uuidv4(),
+        userId,
+        learningGoalId: goalId,
+        competencyId,
+        baselineScore: masteryScore, // Initial baseline
+        currentScore: masteryScore,
+        masteryState,
+        confidenceScore,
+        evidenceCount: 1,
+        lastEvidenceAt: now,
+        updatedAt: now,
+      };
+      this.competencyStates.set(stateKey, state);
+      return state;
+    }
+  }
+
   async getCurrentLearningState(
     userId: string,
     goalId: string
@@ -454,7 +510,10 @@ export class LearningStateService {
         comps.push({
           competencyId: state.competencyId,
           baselineScore: state.baselineScore,
+          masteryScore: state.currentScore,
+          masteryState: state.masteryState,
           confidence: state.confidenceScore,
+          confidenceScore: state.confidenceScore,
           evidenceCount: state.evidenceCount,
           lastEvidenceAt: state.lastEvidenceAt,
         });
