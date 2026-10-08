@@ -222,8 +222,8 @@ export default function LearnerDashboardPage() {
       : 0;
   const totalEvidenceCount = comps.reduce((acc, c) => acc + c.evidenceCount, 0);
 
-  // Loading state
-  if (learnerLoading) {
+  // Loading state (only for authenticated session setup)
+  if (learnerLoading && userId) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center space-y-3">
         <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />

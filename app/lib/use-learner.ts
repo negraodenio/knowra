@@ -39,25 +39,28 @@ export function useLearner() {
         setUserIdState(user.id);
         setUserEmailState(user.email ?? null);
         if (typeof window !== "undefined") {
+          const previousUserId = localStorage.getItem(USER_ID_KEY);
+          if (previousUserId && previousUserId !== user.id) {
+            // User changed or new user logged in: purge stale active goal from previous session
+            localStorage.removeItem(ACTIVE_GOAL_KEY);
+            setActiveGoalIdState(null);
+            setActiveGoal(null);
+          } else {
+            const storedGoal = localStorage.getItem(ACTIVE_GOAL_KEY);
+            if (storedGoal) {
+              setActiveGoalIdState(storedGoal);
+            }
+          }
           localStorage.setItem(USER_ID_KEY, user.id);
         }
       } else {
-        // In offline/test environments, check localStorage if present
+        setUserIdState(null);
+        setUserEmailState(null);
+        setActiveGoalIdState(null);
+        setActiveGoal(null);
         if (typeof window !== "undefined") {
-          const storedUser = localStorage.getItem(USER_ID_KEY);
-          if (storedUser && process.env.NODE_ENV !== "production") {
-            setUserIdState(storedUser);
-          } else {
-            setUserIdState(null);
-            setUserEmailState(null);
-          }
-        }
-      }
-
-      if (typeof window !== "undefined") {
-        const storedGoal = localStorage.getItem(ACTIVE_GOAL_KEY);
-        if (storedGoal) {
-          setActiveGoalIdState(storedGoal);
+          localStorage.removeItem(USER_ID_KEY);
+          localStorage.removeItem(ACTIVE_GOAL_KEY);
         }
       }
       setLoading(false);
@@ -153,10 +156,8 @@ export function useLearner() {
       setGoals([]);
       setActiveGoal(null);
       setActiveGoalIdState(null);
-      setLoading(false);
       return;
     }
-    setLoading(true);
     try {
       const res = await fetch("/api/goals", {
         headers: { "x-user-id": userId },
@@ -180,12 +181,13 @@ export function useLearner() {
         } else {
           setActiveGoal(null);
           setActiveGoalIdState(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(ACTIVE_GOAL_KEY);
+          }
         }
       }
     } catch {
       // Failed to load
-    } finally {
-      setLoading(false);
     }
   }, [userId]);
 

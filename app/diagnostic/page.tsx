@@ -29,7 +29,8 @@ function DiagnosticContent() {
   const goalIdParam = searchParams.get("goalId");
 
   const { userId, activeGoalId, goals, refreshGoals } = useLearner();
-  const effectiveGoalId = goalIdParam || activeGoalId || (goals.length > 0 ? goals[0].id : null);
+  const isGoalOwned = goals.some((g) => g.id === activeGoalId);
+  const effectiveGoalId = goalIdParam || (isGoalOwned ? activeGoalId : null) || (goals.length > 0 ? goals[0].id : null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<DiagnosticItem[]>([]);
@@ -61,7 +62,11 @@ function DiagnosticContent() {
       setItems(data.items || []);
       setCurrentIndex(0);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      if (typeof window !== "undefined" && msg.includes("not found")) {
+        localStorage.removeItem("knowra_learner_active_goal_id");
+      }
     } finally {
       setLoading(false);
     }
@@ -171,15 +176,23 @@ function DiagnosticContent() {
           <p className="text-sm">Preparing diagnostic questions for your domain...</p>
         </div>
       ) : error ? (
-        <div className="p-6 rounded-2xl border border-rose-800 bg-rose-950/20 text-rose-300 space-y-3">
+        <div className="p-6 rounded-2xl border border-rose-800 bg-rose-950/20 text-rose-300 space-y-4">
           <div className="font-semibold text-sm">Diagnostic Error</div>
           <p className="text-xs">{error}</p>
-          <button
-            onClick={() => startDiagnosticSession()}
-            className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold"
-          >
-            Retry Diagnostic
-          </button>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold transition-colors"
+            >
+              Select / Create Goal →
+            </Link>
+            <button
+              onClick={() => startDiagnosticSession()}
+              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+            >
+              Retry Diagnostic
+            </button>
+          </div>
         </div>
       ) : report ? (
         /* ==========================================================
