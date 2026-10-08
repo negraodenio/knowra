@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useLearner } from "../lib/use-learner";
+import { createClient } from "@/lib/db/supabase-browser";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,17 +18,20 @@ export function AuthModal({
   initialMode = "SIGN_UP",
 }: AuthModalProps) {
   const router = useRouter();
-  const { setUserId } = useLearner();
   const [mode, setMode] = useState<"SIGN_IN" | "SIGN_UP">(initialMode);
-  const [handle, setHandle] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setMode(initialMode);
-  }, [initialMode]);
+    setError(null);
+    setInfoMessage(null);
+  }, [initialMode, isOpen]);
 
-  // Record signup_started telemetry when opened in signup mode
+  // Record telemetry when opened
   useEffect(() => {
     if (isOpen) {
       fetch("/api/events", {
@@ -48,43 +51,78 @@ export function AuthModal({
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanId = handle.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
-    if (!cleanId) {
-      setError("Please provide a valid username or learner ID.");
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setError("Please provide a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
     setError(null);
-    try {
-      // Record authentication handoff event
-      await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventType: "signup_started",
-          anonymousId: cleanId,
-          payload: { chosenId: cleanId, mode },
-        }),
-      }).catch(() => {});
+    setInfoMessage(null);
 
-      setUserId(cleanId);
-      onClose();
-      if (redirectUrl && redirectUrl !== "/") {
-        router.push(redirectUrl);
+    const supabase = createClient();
+
+    try {
+      if (mode === "SIGN_UP") {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+        });
+
+        if (signUpError) {
+          throw signUpError;
+        }
+
+        if (data.user && !data.session) {
+          // Email confirmation is required by Supabase project configuration
+          setInfoMessage("Account created. Please check your email to confirm your account, then sign in.");
+          setMode("SIGN_IN");
+          return;
+        }
+
+        // Initialize profile row if session was established immediately
+        if (data.session && data.user) {
+          try {
+            await supabase.from("profiles").upsert({
+              id: data.user.id,
+              email: cleanEmail,
+              updated_at: new Date().toISOString(),
+            });
+          } catch {
+            // Non-blocking profile initialization
+          }
+        }
+
+        onClose();
+        if (redirectUrl && redirectUrl !== "/") {
+          router.push(redirectUrl);
+        }
+      } else {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+        if (signInError) {
+          throw signInError;
+        }
+
+        if (data.session) {
+          onClose();
+          if (redirectUrl && redirectUrl !== "/") {
+            router.push(redirectUrl);
+          }
+        }
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      setError(err instanceof Error ? err.message : "Authentication failed. Please verify your credentials.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleQuickDemo = (demoId: string) => {
-    setUserId(demoId);
-    onClose();
-    if (redirectUrl && redirectUrl !== "/") {
-      router.push(redirectUrl);
     }
   };
 
@@ -98,30 +136,31 @@ export function AuthModal({
       <div className="relative w-full max-w-md rounded-xl border border-white/[0.08] bg-[#0c1018] p-6 sm:p-8 shadow-2xl space-y-6">
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           aria-label="Close modal"
-          className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+          className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors text-sm font-mono p-1"
         >
           ✕
         </button>
 
-        {/* Modal Header */}
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
+        {/* Header */}
+        <div className="space-y-2 text-center">
+          <div className="inline-flex items-center gap-2 mb-1">
             <span className="w-5 h-5 rounded-[4px] bg-white text-[#07090e] font-mono font-bold text-xs flex items-center justify-center">
               K
             </span>
-            <span className="font-mono text-[10px] text-slate-400 uppercase tracking-widest">
-              {mode === "SIGN_UP" ? "KNOWRA / ONBOARDING" : "KNOWRA / IDENTITY"}
+            <span className="font-semibold text-xs tracking-[0.2em] text-white">
+              KNOWRA
             </span>
           </div>
           <h2 id="auth-modal-title" className="text-xl sm:text-2xl font-light text-white tracking-tight">
-            {mode === "SIGN_UP" ? "Create your learner profile." : "Access your learning workspace."}
+            {mode === "SIGN_UP" ? "Start Learning." : "Sign In."}
           </h2>
-          <p className="text-xs text-slate-400 leading-relaxed font-sans">
+          <p className="text-xs text-zinc-400">
             {mode === "SIGN_UP"
-              ? "Knowra will map your starting point and personalize your Next Best Action."
-              : "Resume your competency map and active recommendations."}
+              ? "Knowra understands what you already know and adapts what you learn next."
+              : "Resume your personalized competency graph and Next Best Action."}
           </p>
         </div>
 
@@ -131,68 +170,72 @@ export function AuthModal({
           </div>
         )}
 
-        {/* Auth Form */}
+        {infoMessage && (
+          <div className="p-3 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-mono">
+            {infoMessage}
+          </div>
+        )}
+
+        {/* Supabase Email + Password Form (§S8.3) */}
         <form onSubmit={handleAuthSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="learner-id-input" className="block font-mono text-[10px] text-slate-400 uppercase tracking-widest">
-              Learner Identifier
+            <label htmlFor="auth-modal-email-input" className="block font-mono text-[10px] text-zinc-400 uppercase tracking-widest">
+              Email Address
             </label>
             <input
-              id="learner-id-input"
-              type="text"
+              id="auth-modal-email-input"
+              type="email"
               required
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              placeholder="e.g. alex-learns or dev_jordan"
-              className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-white/40 transition-all font-mono"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@domain.com"
+              className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-all font-mono"
             />
-            <p className="text-[10px] text-slate-500 font-mono">
-              Your identifier persists your verified evidence and mastery state.
-            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="auth-modal-password-input" className="block font-mono text-[10px] text-zinc-400 uppercase tracking-widest">
+              Password
+            </label>
+            <input
+              id="auth-modal-password-input"
+              type="password"
+              required
+              autoComplete={mode === "SIGN_UP" ? "new-password" : "current-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-all font-mono"
+            />
+            {mode === "SIGN_UP" && (
+              <p className="text-[10px] text-zinc-500 font-mono">
+                Minimum 6 characters.
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 rounded-lg font-semibold text-xs uppercase tracking-wider text-[#07090e] bg-white hover:bg-slate-200 transition-all disabled:opacity-50"
+            className="w-full py-3 px-4 rounded-lg font-semibold text-xs uppercase tracking-wider text-[#07090e] bg-white hover:bg-zinc-200 transition-all disabled:opacity-50"
           >
-            {loading ? "Connecting..." : mode === "SIGN_UP" ? "Start Learning →" : "Sign In →"}
+            {loading ? "Authenticating..." : mode === "SIGN_UP" ? "Create Account →" : "Sign In →"}
           </button>
         </form>
 
-        {/* Quick Demo Identities (§31) */}
-        <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-          <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest text-center">
-            Or test with verified demo profiles
-          </div>
-          <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("test-learner-1")}
-              className="p-2.5 rounded border border-white/[0.06] bg-[#07090e] hover:border-white/20 text-left transition-colors"
-            >
-              <div className="text-xs text-white">test-learner-1</div>
-              <div className="text-[10px] text-slate-400">Python Junior</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("test-learner-2")}
-              className="p-2.5 rounded border border-white/[0.06] bg-[#07090e] hover:border-white/20 text-left transition-colors"
-            >
-              <div className="text-xs text-white">test-learner-2</div>
-              <div className="text-[10px] text-slate-400">Mathematics</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Mode Toggle */}
-        <div className="text-center text-xs text-slate-500 font-mono">
+        {/* Mode Switcher */}
+        <div className="text-center text-xs text-zinc-500 font-mono pt-2 border-t border-white/[0.06]">
           {mode === "SIGN_UP" ? (
             <span>
-              Already have a profile?{" "}
+              Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => setMode("SIGN_IN")}
+                onClick={() => {
+                  setMode("SIGN_IN");
+                  setError(null);
+                  setInfoMessage(null);
+                }}
                 className="text-white hover:underline underline-offset-4"
               >
                 Sign In
@@ -203,10 +246,14 @@ export function AuthModal({
               New to Knowra?{" "}
               <button
                 type="button"
-                onClick={() => setMode("SIGN_UP")}
+                onClick={() => {
+                  setMode("SIGN_UP");
+                  setError(null);
+                  setInfoMessage(null);
+                }}
                 className="text-white hover:underline underline-offset-4"
               >
-                Create Profile
+                Create Account
               </button>
             </span>
           )}

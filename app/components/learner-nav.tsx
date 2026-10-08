@@ -7,10 +7,9 @@ import { useLearner } from "../lib/use-learner";
 
 export function LearnerNav() {
   const pathname = usePathname();
-  const { userId, setUserId, signOut, activeGoal, goals, selectGoal } = useLearner();
+  const { userId, userEmail, signOut, activeGoal, goals, selectGoal } = useLearner();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showGoalMenu, setShowGoalMenu] = useState(false);
-  const [customUserId, setCustomUserId] = useState("");
 
   const navLinks = [
     { href: "/", label: "Today", icon: "⚡" },
@@ -173,54 +172,19 @@ export function LearnerNav() {
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-900 p-3 shadow-2xl z-50">
                     <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                      Switch Learner Identity
+                      Authenticated Learner
                     </div>
-                    <div className="space-y-1 mb-3">
-                      {["test-learner-1", "test-learner-2", "learner-eval-demo"].map((id) => (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            setUserId(id);
-                            setShowUserMenu(false);
-                          }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors flex items-center justify-between ${
-                            userId === id
-                              ? "bg-sky-500/10 text-sky-400 font-semibold border border-sky-500/20"
-                              : "hover:bg-slate-800 text-slate-400"
-                          }`}
-                        >
-                          <span>{id}</span>
-                          {userId === id && <span>✓</span>}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="border-t border-slate-800 pt-2 mb-2">
-                      <div className="text-[10px] text-slate-500 mb-1">Custom User ID:</div>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          placeholder="e.g. learner-3"
-                          value={customUserId}
-                          onChange={(e) => setCustomUserId(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
-                        />
-                        <button
-                          onClick={() => {
-                            if (customUserId.trim()) {
-                              setUserId(customUserId.trim());
-                              setCustomUserId("");
-                              setShowUserMenu(false);
-                            }
-                          }}
-                          className="px-2 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-medium"
-                        >
-                          Set
-                        </button>
+                    <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 mb-3 font-mono">
+                      <div className="text-xs text-white truncate">
+                        {userEmail || userId}
+                      </div>
+                      <div className="text-[10px] text-emerald-400 mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>Supabase Session Active</span>
                       </div>
                     </div>
 
-                    {/* Sign Out Action (§31 Case F) */}
+                    {/* Sign Out Action (§31 Case F, §S8.3) */}
                     <div className="border-t border-slate-800 pt-2">
                       <button
                         type="button"

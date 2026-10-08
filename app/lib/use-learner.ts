@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/db/supabase-browser";
 
 const USER_ID_KEY = "knowra_learner_user_id";
 const ACTIVE_GOAL_KEY = "knowra_learner_active_goal_id";
@@ -17,30 +19,83 @@ export interface LearnerGoal {
 }
 
 export function useLearner() {
+  const router = useRouter();
   const [userId, setUserIdState] = useState<string | null>(null);
+  const [userEmail, setUserEmailState] = useState<string | null>(null);
   const [activeGoalId, setActiveGoalIdState] = useState<string | null>(null);
   const [goals, setGoals] = useState<LearnerGoal[]>([]);
   const [activeGoal, setActiveGoal] = useState<LearnerGoal | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Initialize from localStorage
+  // Initialize from Supabase Auth session with fallback for test environments
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem(USER_ID_KEY);
-      if (storedUser) {
-        setUserIdState(storedUser);
+    let isMounted = true;
+    const supabase = createClient();
+
+    // Check active Supabase session
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!isMounted) return;
+      if (user?.id) {
+        setUserIdState(user.id);
+        setUserEmailState(user.email ?? null);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(USER_ID_KEY, user.id);
+        }
       } else {
-        setUserIdState(null);
-        setLoading(false);
+        // In offline/test environments, check localStorage if present
+        if (typeof window !== "undefined") {
+          const storedUser = localStorage.getItem(USER_ID_KEY);
+          if (storedUser && process.env.NODE_ENV !== "production") {
+            setUserIdState(storedUser);
+          } else {
+            setUserIdState(null);
+            setUserEmailState(null);
+          }
+        }
       }
 
-      const storedGoal = localStorage.getItem(ACTIVE_GOAL_KEY);
-      if (storedGoal) {
-        setActiveGoalIdState(storedGoal);
+      if (typeof window !== "undefined") {
+        const storedGoal = localStorage.getItem(ACTIVE_GOAL_KEY);
+        if (storedGoal) {
+          setActiveGoalIdState(storedGoal);
+        }
       }
-    }
+      setLoading(false);
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
+
+    // Real-time auth state subscription (§S8.3)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      if (session?.user?.id) {
+        setUserIdState(session.user.id);
+        setUserEmailState(session.user.email ?? null);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(USER_ID_KEY, session.user.id);
+          window.dispatchEvent(new Event("knowra_user_changed"));
+        }
+      } else if (event === "SIGNED_OUT") {
+        setUserIdState(null);
+        setUserEmailState(null);
+        setActiveGoalIdState(null);
+        setActiveGoal(null);
+        setGoals([]);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(USER_ID_KEY);
+          localStorage.removeItem(ACTIVE_GOAL_KEY);
+          window.dispatchEvent(new Event("knowra_user_changed"));
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
+  // Test helper and local override (isolated to test harness)
   const setUserId = useCallback((newUserId: string) => {
     setUserIdState(newUserId);
     if (typeof window !== "undefined") {
@@ -51,17 +106,29 @@ export function useLearner() {
     }
   }, []);
 
-  const signOut = useCallback(() => {
+  // Authoritative sign out via Supabase Auth (§S8.3)
+  const signOut = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Best-effort remote signout
+    }
+
     if (typeof window !== "undefined") {
       localStorage.removeItem(USER_ID_KEY);
       localStorage.removeItem(ACTIVE_GOAL_KEY);
       window.dispatchEvent(new Event("knowra_user_changed"));
     }
+
     setUserIdState(null);
+    setUserEmailState(null);
     setActiveGoalIdState(null);
     setActiveGoal(null);
     setGoals([]);
-  }, []);
+
+    router.push("/");
+  }, [router]);
 
   const selectGoal = useCallback(async (goalId: string) => {
     if (!userId) return;
@@ -143,6 +210,7 @@ export function useLearner() {
 
   return {
     userId: userId || "",
+    userEmail: userEmail || "",
     setUserId,
     signOut,
     activeGoalId,
