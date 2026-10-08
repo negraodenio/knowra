@@ -66,7 +66,7 @@ export default function LearningMapPage() {
       const gapsData = gapsRes.ok ? await gapsRes.json() : { gaps: [] };
       const gapsMap = new Map<string, string>();
       for (const g of gapsData.gaps || []) {
-        if (g.status === "ACTIVE") {
+        if (g.status === "OPEN") {
           gapsMap.set(g.competencyId, g.reason);
         }
       }
@@ -79,13 +79,11 @@ export default function LearningMapPage() {
       const focusCompetencyId = recData?.recommendation?.competencyId;
 
       // 4. Fetch Curated Domain Competencies
-      // Map domain competencies
       const stateCompsMap = new Map<string, StateComp>();
       for (const c of (stateData?.competencies || []) as StateComp[]) {
         stateCompsMap.set(c.competencyId, c);
       }
 
-      // Hardcoded spine lookup or dynamic from domain
       const domainId = activeGoal?.domainId || "python-junior";
       let domainCompetencies: DomainCompDef[] = [];
 
@@ -110,6 +108,9 @@ export default function LearningMapPage() {
           { id: "math-linear-systems", title: "Linear Systems", category: "PROCEDURAL", prereqs: ["math-linear-equations"], difficulty: 3, desc: "Two-variable linear systems via substitution and elimination." },
           { id: "math-quadratic-equations", title: "Quadratic Equations", category: "CONCEPTUAL", prereqs: ["math-algebraic-expressions"], difficulty: 3, desc: "Factoring quadratic trinomials and quadratic formula." },
           { id: "math-functions-graphs", title: "Functions & Graphs", category: "CONCEPTUAL", prereqs: ["math-linear-systems", "math-quadratic-equations"], difficulty: 3, desc: "Function notation, slope-intercept form, and vertices." },
+          { id: "math-trigonometry-ratios", title: "Trigonometric Ratios", category: "CONCEPTUAL", prereqs: ["math-algebraic-expressions"], difficulty: 3, desc: "Sine, cosine, and tangent in right triangles; Pythagorean theorem." },
+          { id: "math-coordinate-geometry", title: "Coordinate Geometry", category: "PROCEDURAL", prereqs: ["math-functions-graphs", "math-trigonometry-ratios"], difficulty: 4, desc: "Distance formula, midpoint, parallel and perpendicular lines." },
+          { id: "math-probability-statistics", title: "Probability & Statistics", category: "CONCEPTUAL", prereqs: ["math-algebraic-expressions"], difficulty: 2, desc: "Sample spaces, mean, median, mode, variance, and standard deviation." },
         ];
       } else {
         domainCompetencies = [
@@ -118,6 +119,9 @@ export default function LearningMapPage() {
           { id: "xl-logical-formulas", title: "Logical Formulas (IF, AND, OR)", category: "CONCEPTUAL", prereqs: ["xl-core-math-functions"], difficulty: 2, desc: "Single and nested IF statements, boolean logic." },
           { id: "xl-conditional-math", title: "Conditional Math (SUMIFS, COUNTIFS)", category: "PROCEDURAL", prereqs: ["xl-logical-formulas"], difficulty: 2, desc: "Filtering calculations by multiple criteria." },
           { id: "xl-lookup-functions", title: "Lookups (XLOOKUP, INDEX/MATCH)", category: "PROCEDURAL", prereqs: ["xl-logical-formulas"], difficulty: 3, desc: "Modern search with XLOOKUP and INDEX/MATCH." },
+          { id: "xl-text-data-cleaning", title: "Text Cleaning & Manipulation", category: "PROCEDURAL", prereqs: ["xl-navigation-basics"], difficulty: 2, desc: "TRIM, CLEAN, CONCAT, TEXTJOIN, LEFT, and Flash Fill." },
+          { id: "xl-pivot-tables", title: "Pivot Tables & Summaries", category: "PROCEDURAL", prereqs: ["xl-conditional-math", "xl-text-data-cleaning"], difficulty: 3, desc: "Creating Pivot Tables, dynamic aggregation, and slicing." },
+          { id: "xl-visualization-validation", title: "Visualization & Data Validation", category: "PROCEDURAL", prereqs: ["xl-pivot-tables", "xl-lookup-functions"], difficulty: 3, desc: "Dynamic charts, conditional formatting, and dropdown validation." },
         ];
       }
 
@@ -222,7 +226,7 @@ export default function LearningMapPage() {
               Your Adaptive Learning Map
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Every node represents a competency in the prerequisite DAG. The Learning Engine adapts your path based on verified evidence.
+              Every card represents a key topic in your personalized learning journey. The Learning Engine adapts your path based on verified evidence.
             </p>
           </div>
 

@@ -389,15 +389,28 @@ export default function ProgressPage() {
                 <div className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">
                   Empirical Learning Gain
                 </div>
-                <div className="text-4xl font-extrabold font-mono text-emerald-400">
+                <div className={`text-4xl font-extrabold font-mono ${
+                  typeof learningGainVal === "number" && learningGainVal < 0
+                    ? "text-amber-400"
+                    : "text-emerald-400"
+                }`}>
                   {typeof learningGainVal === "number"
                     ? `${learningGainVal >= 0 ? "+" : ""}${learningGainVal.toFixed(1)} pts`
                     : "—"}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {typeof relativeGainVal === "number"
-                    ? `Relative Gain (g): ${(relativeGainVal * 100).toFixed(1)}% of potential`
-                    : "Gain calculated upon final assessment completion."}
+                  {typeof relativeGainVal === "number" ? (
+                    <div>
+                      <span>Relative Gain (g): {(relativeGainVal * 100).toFixed(1)}%</span>
+                      {typeof learningGainVal === "number" && learningGainVal < 0 && (
+                        <p className="mt-1 text-[11px] text-amber-300/80 leading-normal">
+                          Score reflects unpracticed competencies or assessment challenge. Targeted review is recommended.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    "Gain calculated upon final assessment completion."
+                  )}
                 </div>
               </div>
             </div>

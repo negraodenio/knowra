@@ -353,6 +353,148 @@ export const CURATED_ACTIVITIES: Record<string, PracticeActivity> = {
     },
   },
 
+  "math-linear-systems": {
+    competencyId: "math-linear-systems",
+    domainId: "math-exams",
+    title: "Systems of Linear Equations",
+    category: "PROCEDURAL",
+    objective: "Solve systems of two linear equations using substitution or elimination methods.",
+    instruction:
+      "A linear system comprises two or more equations with common variables. The solution is the point (x, y) where the lines intersect. The substitution method solves one equation for one variable and substitutes it into the second. The elimination method adds or subtracts equations to cancel one variable.",
+    keyConcepts: [
+      "Substitution works best when a variable already has a coefficient of 1 or -1",
+      "Elimination aligns like variables vertically and scales equations by common multiples",
+      "Consistent systems have exactly one solution; parallel lines have no solution",
+    ],
+    practice: {
+      id: "prac-math-sys-1",
+      prompt: "Find x in the system:\nx + y = 10\nx - y = 4",
+      itemType: "NUMERIC",
+      correctAnswer: "7",
+      explanation: "Add the two equations together: (x + y) + (x - y) = 10 + 4 => 2x = 14 => x = 7.",
+      hints: ["Add the two equations to eliminate y.", "Divide 14 by 2."],
+    },
+  },
+
+  "math-quadratic-equations": {
+    competencyId: "math-quadratic-equations",
+    domainId: "math-exams",
+    title: "Quadratic Equations",
+    category: "CONCEPTUAL",
+    objective: "Find roots of quadratic equations by factoring and the quadratic formula.",
+    instruction:
+      "Quadratic equations take the standard form ax^2 + bx + c = 0 (with a != 0). Roots represent the x-intercepts of the parabola. The discriminant Delta = b^2 - 4ac reveals the nature of solutions: Delta > 0 yields two real roots, Delta = 0 yields one repeated root, and Delta < 0 yields two complex roots.",
+    keyConcepts: [
+      "Zero product property: If a * b = 0, then a = 0 or b = 0",
+      "Quadratic formula: x = (-b +- sqrt(b^2 - 4ac)) / (2a)",
+      "Factoring trinomials finds factors of (a*c) that add up to b",
+    ],
+    practice: {
+      id: "prac-math-quad-1",
+      prompt: "What are the solutions to x^2 - 5x + 6 = 0?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["x = 2 and x = 3", "x = -2 and x = -3", "x = 1 and x = 6", "x = -1 and x = -6"],
+      correctAnswer: "x = 2 and x = 3",
+      explanation: "Factor into (x - 2)(x - 3) = 0. Setting each factor to zero gives x = 2 and x = 3.",
+      hints: ["Find two numbers that multiply to 6 and add to -5."],
+    },
+  },
+
+  "math-functions-graphs": {
+    competencyId: "math-functions-graphs",
+    domainId: "math-exams",
+    title: "Functions and Graphs",
+    category: "CONCEPTUAL",
+    objective: "Understand function notation, domain, range, slope-intercept form, and graphing behavior.",
+    instruction:
+      "A function f(x) assigns exactly one output to each input from its domain. The graph of a linear function y = mx + b has slope m and y-intercept (0, b). The vertical line test verifies whether a curve represents a valid function.",
+    keyConcepts: [
+      "Each input x must map to exactly one output y",
+      "Slope m = (y2 - y1) / (x2 - x1) measures rate of change",
+      "Domain is the set of all allowable inputs; Range is all achieved outputs",
+    ],
+    practice: {
+      id: "prac-math-func-1",
+      prompt: "What is the slope of the line passing through points (1, 3) and (3, 7)?",
+      itemType: "NUMERIC",
+      correctAnswer: "2",
+      explanation: "m = (7 - 3) / (3 - 1) = 4 / 2 = 2.",
+      hints: ["Use the formula m = (y2 - y1) / (x2 - x1)."],
+    },
+  },
+
+  "math-trigonometry-ratios": {
+    competencyId: "math-trigonometry-ratios",
+    domainId: "math-exams",
+    title: "Trigonometric Ratios and Right Triangles",
+    category: "CONCEPTUAL",
+    objective: "Apply sine, cosine, and tangent ratios (SOH-CAH-TOA) and the Pythagorean theorem.",
+    instruction:
+      "In a right triangle with acute angle theta, trigonometric ratios relate angle measures to side lengths: sin(theta) = opposite/hypotenuse, cos(theta) = adjacent/hypotenuse, tan(theta) = opposite/adjacent. The Pythagorean theorem states a^2 + b^2 = c^2.",
+    keyConcepts: [
+      "SOH: sin = opposite / hypotenuse",
+      "CAH: cos = adjacent / hypotenuse",
+      "TOA: tan = opposite / adjacent",
+      "Hypotenuse is always the longest side, opposite the 90-degree angle",
+    ],
+    practice: {
+      id: "prac-math-trig-1",
+      prompt: "In a right triangle, if the opposite side is 3 and the adjacent side is 4, what is tan(theta)?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["3/4", "4/3", "3/5", "4/5"],
+      correctAnswer: "3/4",
+      explanation: "tan(theta) = opposite / adjacent = 3 / 4.",
+      hints: ["TOA: Tangent equals opposite over adjacent."],
+    },
+  },
+
+  "math-coordinate-geometry": {
+    competencyId: "math-coordinate-geometry",
+    domainId: "math-exams",
+    title: "Coordinate Geometry",
+    category: "PROCEDURAL",
+    objective: "Calculate distances, midpoints, and geometric properties in the Cartesian plane.",
+    instruction:
+      "Coordinate geometry connects algebra and geometry. The distance between points (x1, y1) and (x2, y2) is d = sqrt((x2 - x1)^2 + (y2 - y1)^2). The midpoint is M = ((x1 + x2)/2, (y1 + y2)/2).",
+    keyConcepts: [
+      "Distance formula derives directly from the Pythagorean theorem",
+      "Midpoint averages the respective coordinates",
+      "Perpendicular slopes satisfy m1 * m2 = -1",
+    ],
+    practice: {
+      id: "prac-math-coord-1",
+      prompt: "What is the midpoint between (2, 4) and (6, 10)?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["(4, 7)", "(4, 6)", "(3, 7)", "(8, 14)"],
+      correctAnswer: "(4, 7)",
+      explanation: "Midpoint x = (2 + 6)/2 = 4; Midpoint y = (4 + 10)/2 = 7. Result is (4, 7).",
+      hints: ["Average the x values (2 and 6).", "Average the y values (4 and 10)."],
+    },
+  },
+
+  "math-probability-statistics": {
+    competencyId: "math-probability-statistics",
+    domainId: "math-exams",
+    title: "Foundational Probability and Descriptive Statistics",
+    category: "CONCEPTUAL",
+    objective: "Calculate theoretical probabilities and compute summary statistics (mean, median, mode).",
+    instruction:
+      "Probability measures the likelihood of an event: P(E) = favorable outcomes / total possible outcomes. In statistics, the mean is the arithmetic average, the median is the middle value in ordered data, and the mode is the most frequently occurring value.",
+    keyConcepts: [
+      "0 <= P(E) <= 1; P(certain) = 1, P(impossible) = 0",
+      "Mean is sensitive to extreme outliers; median is robust",
+      "Complement rule: P(not E) = 1 - P(E)",
+    ],
+    practice: {
+      id: "prac-math-stat-1",
+      prompt: "What is the median of the dataset: 3, 7, 9, 15, 20?",
+      itemType: "NUMERIC",
+      correctAnswer: "9",
+      explanation: "With 5 ordered numbers, the middle (3rd) value is 9.",
+      hints: ["The list is already sorted.", "Find the middle number."],
+    },
+  },
+
   // --- EXCEL PRO CURATED ---
   "xl-navigation-basics": {
     competencyId: "xl-navigation-basics",
@@ -400,6 +542,155 @@ export const CURATED_ACTIVITIES: Record<string, PracticeActivity> = {
       correctAnswer: "25",
       explanation: "The sum is 10 + 20 + 30 + 40 = 100. Divided by 4 cells, the average is 25.",
       hints: ["Sum the four values.", "Divide by 4."],
+    },
+  },
+
+  "xl-logical-formulas": {
+    competencyId: "xl-logical-formulas",
+    domainId: "excel-pro",
+    title: "Logical Formulas (IF, AND, OR)",
+    category: "CONCEPTUAL",
+    objective: "Construct conditional logic using single and nested IF statements with boolean operators.",
+    instruction:
+      "The `IF(logical_test, value_if_true, value_if_false)` function branches formula evaluation based on conditions. Combine with `AND(c1, c2)` to require all conditions, or `OR(c1, c2)` to require at least one condition.",
+    keyConcepts: [
+      "`IF` returns one of two outcomes based on truth value",
+      "`AND` requires every condition to be TRUE",
+      "`OR` returns TRUE if any single condition is TRUE",
+    ],
+    practice: {
+      id: "prac-xl-logic-1",
+      prompt: "What does `=IF(AND(10 > 5, 20 < 15), 'Yes', 'No')` evaluate to?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["No", "Yes", "#VALUE!", "TRUE"],
+      correctAnswer: "No",
+      explanation: "AND(TRUE, FALSE) is FALSE, so the IF function returns 'No'.",
+      hints: ["Is 20 < 15 true or false?", "AND requires all arguments to be true."],
+    },
+  },
+
+  "xl-conditional-math": {
+    competencyId: "xl-conditional-math",
+    domainId: "excel-pro",
+    title: "Conditional Aggregations (SUMIFS, COUNTIFS)",
+    category: "PROCEDURAL",
+    objective: "Aggregate subsets of data meeting multiple criteria with `SUMIFS`, `COUNTIFS`, and `AVERAGEIFS`.",
+    instruction:
+      "`SUMIFS(sum_range, criteria_range1, criteria1, ...)` sums values where corresponding cells meet specified conditions. Unlike legacy `SUMIF`, `SUMIFS` places the `sum_range` first, followed by pairs of criteria ranges and conditions.",
+    keyConcepts: [
+      "`SUMIFS` puts the sum_range as the first argument",
+      "Criteria can use comparison operators in strings: `\">=100\"`",
+      "`COUNTIFS` counts rows that satisfy all given criteria pairs simultaneously",
+    ],
+    practice: {
+      id: "prac-xl-condmath-1",
+      prompt: "In `=SUMIFS(C1:C10, A1:A10, 'North', B1:B10, '>100')`, which range contains the numbers being summed?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["C1:C10", "A1:A10", "B1:B10", "Both A1:A10 and B1:B10"],
+      correctAnswer: "C1:C10",
+      explanation: "In SUMIFS, the first argument (C1:C10) is always the sum_range.",
+      hints: ["SUMIFS puts the numbers to sum at the very beginning."],
+    },
+  },
+
+  "xl-lookup-functions": {
+    competencyId: "xl-lookup-functions",
+    domainId: "excel-pro",
+    title: "Lookup and Reference (XLOOKUP, INDEX/MATCH)",
+    category: "PROCEDURAL",
+    objective: "Execute exact and approximate lookups using modern `XLOOKUP` and versatile `INDEX/MATCH`.",
+    instruction:
+      "`XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode])` replaces `VLOOKUP` and `HLOOKUP`. It searches in any direction, defaults to exact match, and doesn't break when columns are inserted.",
+    keyConcepts: [
+      "`XLOOKUP` defaults to exact match (no more `, FALSE` required)",
+      "`XLOOKUP` can look to the left without column reordering",
+      "The optional `if_not_found` argument replaces cumbersome `IFERROR` wraps",
+    ],
+    practice: {
+      id: "prac-xl-look-1",
+      prompt: "What is the primary advantage of XLOOKUP over traditional VLOOKUP?",
+      itemType: "MULTIPLE_CHOICE",
+      options: [
+        "It can search to the left of the lookup column and defaults to exact match",
+        "It only works with numbers",
+        "It requires sorted tables",
+        "It is only available in Python",
+      ],
+      correctAnswer: "It can search to the left of the lookup column and defaults to exact match",
+      explanation: "XLOOKUP separates lookup_array from return_array, allowing lookups in any direction safely.",
+      hints: ["Think about VLOOKUP's column index limitations."],
+    },
+  },
+
+  "xl-text-data-cleaning": {
+    competencyId: "xl-text-data-cleaning",
+    domainId: "excel-pro",
+    title: "Text Manipulation and Data Cleaning",
+    category: "PROCEDURAL",
+    objective: "Clean messy data using `TRIM`, `CLEAN`, `CONCAT`, `TEXTJOIN`, `LEFT`, `RIGHT`, and Flash Fill.",
+    instruction:
+      "Data preparation requires standardizing text. `TRIM` removes leading, trailing, and duplicate spaces. `TEXTJOIN(delimiter, ignore_empty, text1, ...)` merges strings with a consistent separator.",
+    keyConcepts: [
+      "`TRIM` removes excess spaces but leaves single spaces between words",
+      "`TEXTJOIN` can automatically ignore empty cells",
+      "`LEFT(text, num)` and `RIGHT(text, num)` extract fixed-length substrings",
+    ],
+    practice: {
+      id: "prac-xl-text-1",
+      prompt: "What does `=TRIM('   Data   Science   ')` return?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["'Data Science'", "'DataScience'", "'   Data Science'", "'Data   Science'"],
+      correctAnswer: "'Data Science'",
+      explanation: "TRIM removes outer spaces and reduces internal multiple spaces to a single space.",
+      hints: ["Single space between words is preserved."],
+    },
+  },
+
+  "xl-pivot-tables": {
+    competencyId: "xl-pivot-tables",
+    domainId: "excel-pro",
+    title: "Pivot Tables and Data Summaries",
+    category: "PROCEDURAL",
+    objective: "Aggregate and summarize multi-dimensional tabular datasets dynamically using Pivot Tables.",
+    instruction:
+      "Pivot Tables cross-tabulate large datasets without writing formulas. Drag fields into Rows, Columns, Values, and Filters to generate instant summaries, calculate percentages, or group by dates.",
+    keyConcepts: [
+      "Source data must have single-row headers and no merged cells",
+      "Values field defaults to SUM for numbers and COUNT for text",
+      "Date grouping aggregates by Years, Quarters, or Months automatically",
+    ],
+    practice: {
+      id: "prac-xl-piv-1",
+      prompt: "When non-numeric text data is placed into the Values area of a Pivot Table, what aggregation is used by default?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["COUNT", "SUM", "AVERAGE", "CONCAT"],
+      correctAnswer: "COUNT",
+      explanation: "Excel defaults to COUNT when text values are aggregated in a Pivot Table.",
+      hints: ["You cannot sum text."],
+    },
+  },
+
+  "xl-visualization-validation": {
+    competencyId: "xl-visualization-validation",
+    domainId: "excel-pro",
+    title: "Data Visualization and Validation",
+    category: "PROCEDURAL",
+    objective: "Configure dropdown list data validation and build effective charts with conditional formatting.",
+    instruction:
+      "Data Validation restricts what inputs users can enter into cells (e.g. List from range). Conditional Formatting applies visual styling (color scales, data bars) based on cell values to highlight trends.",
+    keyConcepts: [
+      "Data Validation prevents dirty data entry at the source",
+      "Dropdown validation uses the 'List' type referencing a range: `=Countries!$A$1:$A$10`",
+      "Conditional formatting rules evaluate in top-down precedence",
+    ],
+    practice: {
+      id: "prac-xl-vis-1",
+      prompt: "Which Excel feature is used to restrict a cell to only accept values from a specific dropdown list?",
+      itemType: "MULTIPLE_CHOICE",
+      options: ["Data Validation", "Conditional Formatting", "XLOOKUP", "Format Cells"],
+      correctAnswer: "Data Validation",
+      explanation: "Data Validation allows creators to set criteria such as 'List' to create dropdown options.",
+      hints: ["Feature found in the Data tab."],
     },
   },
 };

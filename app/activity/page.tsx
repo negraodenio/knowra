@@ -412,10 +412,10 @@ function ActivityContent() {
             /* --- FEYNMAN EXPLANATION (§13.3) --- */
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
-                Feynman Rubric: Explain in simple terms
+                Explain in your own words
               </label>
               <p className="text-xs text-slate-400">
-                Explain {activity.title} as if teaching someone with zero background. The Feynman evaluator verifies correctness, causal reasoning, and simplicity.
+                Explain {activity.title} as if teaching someone with zero background. The Learning Engine evaluates correctness, causal reasoning, and conceptual clarity.
               </p>
               <textarea
                 required
@@ -430,24 +430,30 @@ function ActivityContent() {
             /* --- SPACED REVIEW RATING (§13.4) --- */
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-200 uppercase tracking-wider">
-                Spaced Repetition Review (FSRS/SM-2)
+                Spaced Review: Retrieve from memory
               </label>
               <p className="text-xs text-slate-400">
                 {activity.practice.prompt}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                {(["AGAIN", "HARD", "GOOD", "EASY"] as const).map((r) => (
+                {[
+                  { id: "AGAIN", label: "Again", desc: "Forgot" },
+                  { id: "HARD", label: "Hard", desc: "Struggled" },
+                  { id: "GOOD", label: "Good", desc: "Remembered" },
+                  { id: "EASY", label: "Easy", desc: "Effortless" },
+                ].map(({ id, label, desc }) => (
                   <button
-                    key={r}
+                    key={id}
                     type="button"
-                    onClick={() => setReviewRating(r)}
-                    className={`py-3 rounded-xl border text-xs font-bold transition-all ${
-                      reviewRating === r
+                    onClick={() => setReviewRating(id as "AGAIN" | "HARD" | "GOOD" | "EASY")}
+                    className={`py-3 px-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                      reviewRating === id
                         ? "border-purple-500 bg-purple-500/20 text-purple-300 ring-1 ring-purple-500"
                         : "border-slate-800 bg-slate-950 text-slate-400 hover:text-white"
                     }`}
                   >
-                    {r}
+                    <div>{label}</div>
+                    <div className="text-[10px] font-normal text-slate-500">{desc}</div>
                   </button>
                 ))}
               </div>

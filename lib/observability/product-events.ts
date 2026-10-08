@@ -24,6 +24,7 @@ export type ProductEventType =
 
 export interface ProductEvent {
   id: string;
+  seq: number;
   userId: string;
   goalId?: string;
   domainId?: string;
@@ -34,6 +35,7 @@ export interface ProductEvent {
 
 class ProductEventService {
   private events: ProductEvent[] = [];
+  private counter: number = 0;
 
   recordEvent(
     userId: string,
@@ -42,8 +44,10 @@ class ProductEventService {
     goalId?: string,
     domainId?: string
   ): ProductEvent {
+    this.counter += 1;
     const event: ProductEvent = {
       id: uuidv4(),
+      seq: this.counter,
       userId,
       goalId,
       domainId,
@@ -68,7 +72,10 @@ class ProductEventService {
   getUserEvents(userId: string, goalId?: string): ProductEvent[] {
     return this.events
       .filter((e) => e.userId === userId && (!goalId || e.goalId === goalId))
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .sort((a, b) => {
+        const timeDiff = new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        return timeDiff !== 0 ? timeDiff : b.seq - a.seq;
+      });
   }
 
   clearEvents(): void {

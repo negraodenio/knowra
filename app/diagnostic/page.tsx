@@ -215,7 +215,7 @@ function DiagnosticContent() {
                 Status
               </div>
               <div className="text-sm font-semibold text-emerald-400 mt-1">
-                Baseline Preserved (§44)
+                Starting Point Established
               </div>
             </div>
           </div>
@@ -299,8 +299,8 @@ function DiagnosticContent() {
 
           {/* Question Prompt */}
           <div className="space-y-2">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Competency: {currentItem.competencyId}
+            <div className="text-[11px] font-semibold text-sky-400 uppercase tracking-wider">
+              Topic: {currentItem.competencyId.replace(/^[a-z]+-/, "").replace(/-/g, " ")}
             </div>
             <div className="text-base sm:text-lg font-semibold text-white whitespace-pre-wrap leading-relaxed">
               {currentItem.prompt}
