@@ -128,6 +128,10 @@ export const KNOWN_MODEL_PRICING: Record<string, ModelPricing> = {
     promptTokenPricePerMillion: 0.14,
     completionTokenPricePerMillion: 0.28,
   },
+  "openai/gpt-6-astra": {
+    promptTokenPricePerMillion: 10.0,
+    completionTokenPricePerMillion: 50.0,
+  },
 };
 
 const DEFAULT_PRICING: ModelPricing = {

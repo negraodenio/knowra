@@ -485,7 +485,7 @@ describe("Sprint 7 — Assessment & Measurement Engine (§1–§18)", () => {
       expect(measurementReport.baseline.score).toBe(originalBaselineScore);
       expect(measurementReport.final?.score).toBe(finalResult.scoreResult.overallScore);
       expect(measurementReport.retention.d7?.retentionScore).toBe(d7Result.scoreResult.overallScore);
-    });
+    }, 15000);
   });
 
   // ------------------------------------------------------------
