@@ -9,7 +9,7 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
-  const [activeVisualStep, setActiveVisualStep] = useState(3); // Default to Next Best Action card
+  const [activeVisualStep, setActiveVisualStep] = useState(3);
   const [activePreviewTab, setActivePreviewTab] = useState<"nba" | "map" | "practice" | "progress">("nba");
 
   // Track landing_viewed on mount
@@ -53,54 +53,56 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-sky-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-white/20 selection:text-white font-sans antialiased">
       {/* ============================================================
-          PUBLIC NAVBAR
+          1. NAVIGATION — EDITORIAL & MINIMAL (§11)
           ============================================================ */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#07090e]/85 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center justify-between">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-white font-bold text-sm">K</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight text-white group-hover:text-sky-400 transition-colors">
-                KNOWRA
-              </span>
-              <span className="text-[10px] text-slate-400 -mt-1 hidden sm:inline tracking-tight">
-                Adaptive Learning Platform
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-3 group">
+            <span className="w-5 h-5 rounded-[4px] bg-white text-[#07090e] font-mono font-bold text-xs flex items-center justify-center tracking-tighter">
+              K
+            </span>
+            <span className="font-semibold text-sm tracking-[0.2em] text-white">
+              KNOWRA
+            </span>
           </Link>
 
-          {/* Desktop Nav Anchors */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-slate-300">
-            <a href="#how-it-works" onClick={(e) => { e.preventDefault(); handleHowItWorksClick(); }} className="hover:text-white transition-colors">
+          {/* Minimal Navigation */}
+          <nav className="hidden md:flex items-center gap-8 text-xs tracking-wider uppercase text-slate-400">
+            <a
+              href="#how-it-works"
+              onClick={(e) => {
+                e.preventDefault();
+                handleHowItWorksClick();
+              }}
+              className="hover:text-white transition-colors"
+            >
               How It Works
             </a>
             <a href="#differentiation" className="hover:text-white transition-colors">
               Why Knowra
             </a>
             <a href="#curriculum" className="hover:text-white transition-colors">
-              Curated Domains
+              Curriculum
             </a>
             <a href="#preview" className="hover:text-white transition-colors">
-              Product Tour
+              Instrument Tour
             </a>
           </nav>
 
           {/* Action CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               onClick={onSignIn}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all"
+              className="text-xs text-slate-400 hover:text-white transition-colors px-2 py-1"
             >
-              Sign In
+              Sign in
             </button>
             <button
               onClick={() => handleCtaClick("nav_header")}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-md shadow-sky-500/20 transition-all"
+              className="px-4 py-2 rounded-lg text-xs font-medium text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide"
             >
               Start Learning →
             </button>
@@ -110,166 +112,175 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
 
       <main className="flex-1">
         {/* ============================================================
-            HERO SECTION (§5, §6)
+            2. HERO SECTION — EDITORIAL RESTRAINT (§6, §7)
             ============================================================ */}
-        <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-32 overflow-hidden border-b border-slate-900">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900/15 via-slate-950 to-slate-950 pointer-events-none" />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="text-center max-w-3xl mx-auto space-y-6">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                <span>✨</span>
-                <span>The Adaptive Learning Engine</span>
+        <section className="relative pt-20 pb-20 sm:pt-32 sm:pb-28 border-b border-white/[0.06]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-8">
+              {/* Monospace Indicator */}
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                KNOWRA / ADAPTIVE LEARNING ENGINE
               </div>
 
-              {/* Main Headline */}
-              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-[1.1]">
-                Learn what you need.<br />
-                <span className="bg-gradient-to-r from-sky-400 via-indigo-300 to-slate-200 bg-clip-text text-transparent">
-                  Not what everyone else gets.
+              {/* Large Editorial Headline */}
+              <h1 className="text-4xl sm:text-6xl font-light tracking-tight text-white leading-[1.08]">
+                LEARN WHAT YOU NEED.
+                <br />
+                <span className="font-semibold text-slate-300">
+                  NOT WHAT EVERYONE ELSE GETS.
                 </span>
               </h1>
 
               {/* Supporting Copy */}
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto font-normal">
-                Knowra understands what you already know, finds your learning gaps, and adapts what you should learn next.
+              <p className="text-base sm:text-lg text-slate-300 font-normal leading-relaxed max-w-2xl">
+                Knowra understands what you already know, finds your learning gaps,
+                and adapts what you should learn next.
               </p>
 
-              {/* Core Supporting Thesis Line */}
-              <div className="text-xs sm:text-sm font-mono text-sky-300/80 bg-slate-900/60 inline-block px-4 py-1.5 rounded-lg border border-slate-800">
-                &ldquo;The Learning Engine knows what the learner knows.&rdquo;
-              </div>
-
-              {/* Hero CTAs */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+              {/* Primary & Secondary Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
                 <button
                   onClick={() => handleCtaClick("hero_primary")}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-xl shadow-sky-500/25 transition-all transform hover:-translate-y-0.5"
+                  className="px-7 py-3.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-[#07090e] bg-white hover:bg-slate-200 transition-all"
                 >
-                  Start Learning
+                  Start Learning →
                 </button>
                 <button
                   onClick={handleHowItWorksClick}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-900/80 hover:bg-slate-850 hover:text-white border border-slate-800 transition-colors"
+                  className="px-5 py-3.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-colors"
                 >
-                  See How It Works
+                  See how it works ↓
                 </button>
+              </div>
+
+              {/* Quiet Supporting Thesis Line */}
+              <div className="pt-4 border-t border-white/[0.06] text-xs font-mono text-slate-400">
+                &ldquo;The Learning Engine knows what the learner knows.&rdquo;
               </div>
             </div>
 
             {/* ============================================================
-                HERO PRODUCT VISUAL (§6)
+                3. LEARNING STATE INSTRUMENT VISUAL (§8)
                 ============================================================ */}
-            <div className="mt-14 sm:mt-18 max-w-5xl mx-auto">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur-xl p-4 sm:p-6 shadow-2xl relative">
-                {/* Visual Flow Indicator */}
-                <div className="flex items-center justify-between overflow-x-auto pb-4 mb-6 border-b border-slate-800/80 text-[11px] gap-2">
+            <div className="mt-20 max-w-4xl">
+              <div className="rounded-xl border border-white/[0.08] bg-[#0c1018] p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="font-mono text-xs tracking-wider text-slate-300 uppercase">
+                      KNOWRA / LEARNING STATE SPECIFICATION
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10px] text-slate-500 uppercase tracking-widest">
+                    ILLUSTRATIVE SPECIFICATION • DOMAIN: PYTHON JUNIOR
+                  </span>
+                </div>
+
+                {/* Instrument Tab Triggers */}
+                <div className="flex items-center gap-1 overflow-x-auto text-xs pb-1 font-mono">
                   {[
-                    { step: 1, label: "01 Goal", desc: "Intent Defined" },
-                    { step: 2, label: "02 Diagnostic", desc: "Baseline Established" },
-                    { step: 3, label: "03 Next Best Action", desc: "Highest Value Task" },
-                    { step: 4, label: "04 Evidence", desc: "Proof Collected" },
-                    { step: 5, label: "05 Mastery", desc: "State Updated" },
+                    { step: 1, label: "01 State" },
+                    { step: 2, label: "02 Diagnostic" },
+                    { step: 3, label: "03 Next Best Action" },
+                    { step: 4, label: "04 Evidence" },
+                    { step: 5, label: "05 Mastery" },
                   ].map((s) => (
                     <button
                       key={s.step}
                       type="button"
                       onClick={() => setActiveVisualStep(s.step)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                      className={`px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap ${
                         activeVisualStep === s.step
-                          ? "bg-sky-500/20 text-sky-300 font-bold border border-sky-500/40"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "bg-white/10 text-white font-medium"
+                          : "text-slate-500 hover:text-slate-300"
                       }`}
                     >
-                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
-                        activeVisualStep === s.step ? "bg-sky-500 text-white" : "bg-slate-800 text-slate-400"
-                      }`}>
-                        {s.step}
-                      </span>
-                      <span>{s.label}</span>
+                      {s.label}
                     </button>
                   ))}
                 </div>
 
-                {/* Simulated Real Knowra Component States */}
-                <div className="bg-slate-950/80 rounded-xl border border-slate-800/80 p-5 sm:p-6">
+                {/* State Content Panel */}
+                <div className="p-5 rounded-lg border border-white/[0.04] bg-[#07090e]/60 font-mono text-xs">
                   {activeVisualStep === 1 && (
-                    <div className="space-y-3">
-                      <div className="text-[10px] font-mono text-sky-400 uppercase">Learner Goal Intent</div>
-                      <div className="text-lg font-bold text-white">&ldquo;I want to become proficient in Python programming.&rdquo;</div>
-                      <div className="text-xs text-slate-400">
-                        Normalized by Engine into curated domain <span className="font-mono text-emerald-400">python-junior</span>. 7 core competencies mapped into a directed prerequisite graph.
+                    <div className="space-y-4">
+                      <div className="text-slate-400 uppercase tracking-widest text-[10px]">
+                        COMPETENCY MATRIX • 7 TOPICS INITIALIZED
+                      </div>
+                      <div className="space-y-2 font-mono">
+                        <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                          <span className="text-slate-300">Variables &amp; Types</span>
+                          <span className="text-emerald-400">Strong (85%)</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                          <span className="text-slate-300">Control Flow</span>
+                          <span className="text-amber-400">Developing (42%) — Prerequisite Target</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                          <span className="text-slate-300">Functions &amp; Scope</span>
+                          <span className="text-slate-500">Locked (Blocked by Control Flow)</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {activeVisualStep === 2 && (
                     <div className="space-y-3">
-                      <div className="text-[10px] font-mono text-amber-400 uppercase">Diagnostic Starting Baseline</div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-bold text-white">Starting Point Established</div>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                          Score: 57%
-                        </span>
+                      <div className="text-slate-400 uppercase tracking-widest text-[10px]">
+                        STARTING POINT DIAGNOSTIC ESTABLISHED
                       </div>
-                      <div className="text-xs text-slate-400">
-                        Immutable starting baseline recorded. Verified prior knowledge is skipped; prerequisite weaknesses flagged for remediation.
+                      <div className="text-slate-200 text-sm font-sans">
+                        Baseline diagnostic completed (57.1%). Immutable starting benchmark established. Prior knowledge is recognized; prerequisite weaknesses are isolated without punitive resets.
                       </div>
                     </div>
                   )}
 
                   {activeVisualStep === 3 && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider">
-                            Engine Recommended Action
-                          </span>
-                        </div>
-                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        <span className="text-slate-400 uppercase tracking-widest text-[10px]">
+                          EVALUATED NEXT BEST ACTION
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-white/10 text-white font-semibold">
                           PRACTICE
                         </span>
                       </div>
-                      <div>
-                        <div className="text-xl font-extrabold text-white">Variables &amp; Data Types</div>
-                        <div className="text-xs text-slate-400 mt-1">Est. Time: 8 mins • Priority: 85/100</div>
+                      <div className="text-base font-semibold text-white font-sans">
+                        Control Flow &amp; Conditional Branching
                       </div>
-                      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
-                        <span className="text-sky-400 font-semibold">Why this action: </span>
-                        Your diagnostic indicated developing mastery (40%) in fundamental data types. Mastering this unblocks subsequent control flow.
-                      </div>
+                      <p className="text-xs text-slate-400 font-sans leading-relaxed">
+                        <strong className="text-slate-200">Engine Rationale:</strong> Variables mastery is established. Resolving conditional branching unblocks downstream functions in the competency graph.
+                      </p>
                     </div>
                   )}
 
                   {activeVisualStep === 4 && (
                     <div className="space-y-3">
-                      <div className="text-[10px] font-mono text-sky-400 uppercase">Demonstrated Learning Evidence</div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-bold text-white">Activity: Expression Evaluation &amp; Type Casting</div>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                          Score: 90%
-                        </span>
+                      <div className="text-slate-400 uppercase tracking-widest text-[10px]">
+                        DEMONSTRATED EVIDENCE COLLECTED
                       </div>
-                      <div className="text-xs text-slate-400">
-                        Verified evidence emitted. Bayesian learner state and confidence metrics update mathematically without guesswork.
+                      <div className="flex justify-between text-slate-200">
+                        <span>Exercise: Branching Logic Evaluation</span>
+                        <span className="text-emerald-400 font-bold">92% Score</span>
                       </div>
+                      <p className="text-xs text-slate-400 font-sans">
+                        Demonstrated evidence recorded into the learner ledger. Knowledge state updates mathematically rather than assuming completion equates to understanding.
+                      </p>
                     </div>
                   )}
 
                   {activeVisualStep === 5 && (
                     <div className="space-y-3">
-                      <div className="text-[10px] font-mono text-emerald-400 uppercase">Mastery Updated</div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-bold text-white">Variables &amp; Types: Proficient (72%)</div>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30">
-                          Gaps Resolved: 1
-                        </span>
+                      <div className="text-slate-400 uppercase tracking-widest text-[10px]">
+                        STATE UPDATED &amp; GRAPH ADAPTED
                       </div>
-                      <div className="text-xs text-slate-400">
-                        Prerequisite met. The recommendation engine automatically recalculates and promotes <span className="font-mono text-white">Control Flow</span> as your next focus.
+                      <div className="flex justify-between text-slate-200">
+                        <span>Control Flow Mastery</span>
+                        <span className="text-emerald-400 font-bold">Proficient (78%)</span>
                       </div>
+                      <p className="text-xs text-slate-400 font-sans">
+                        Prerequisite resolved. Functions &amp; Scope is dynamically unlocked, and the next recommendation is automatically recomputed.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -279,73 +290,47 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
         </section>
 
         {/* ============================================================
-            PROBLEM SECTION (§7)
+            4. PROBLEM SECTION — MINIMAL CONTRAST (§12)
             ============================================================ */}
-        <section className="py-20 border-b border-slate-900 bg-slate-950">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                The Missing Layer in Education
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Most learning platforms know what you did.<br />
-                <span className="text-sky-400">Knowra focuses on what you know.</span>
+        <section className="py-24 border-b border-white/[0.06] bg-[#07090e]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-16">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                THE FOUNDATIONAL DISTINCTION
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight leading-snug">
+                Most learning platforms know what you did.
+                <br />
+                <span className="font-semibold text-slate-200">
+                  Knowra focuses on what you know.
+                </span>
               </h2>
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-                Traditional courseware logs clicks and completion checkboxes. But watching a lecture does not prove competence.
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* Traditional */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📋</span>
-                  <h3 className="text-base font-bold text-slate-200">What Traditional Systems Track</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl">
+              {/* Column 1: Conventional */}
+              <div className="space-y-4 border-l border-white/[0.08] pl-6">
+                <div className="font-mono text-xs uppercase tracking-widest text-slate-400">
+                  What most platforms see
                 </div>
-                <ul className="space-y-2.5 text-xs text-slate-400">
-                  <li className="flex items-start gap-2">
-                    <span className="text-slate-600 mt-0.5">✕</span>
-                    <span>What video lesson you opened or paused</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-slate-600 mt-0.5">✕</span>
-                    <span>How many minutes you were logged into the page</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-slate-600 mt-0.5">✕</span>
-                    <span>Linear completion percentages (e.g. &ldquo;60% finished&rdquo;)</span>
-                  </li>
+                <ul className="space-y-3 text-xs text-slate-400 leading-relaxed">
+                  <li>— Lessons opened or videos watched</li>
+                  <li>— Elapsed time spent on page</li>
+                  <li>— Generic progress bars and completion percentages</li>
+                  <li>— Passive clicks mistaken for comprehension</li>
                 </ul>
               </div>
 
-              {/* What You Need */}
-              <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🎯</span>
-                  <h3 className="text-base font-bold text-white">What You Actually Need to Know</h3>
+              {/* Column 2: Knowra */}
+              <div className="space-y-4 border-l border-white/20 pl-6">
+                <div className="font-mono text-xs uppercase tracking-widest text-white">
+                  What Knowra seeks
                 </div>
-                <ul className="space-y-2.5 text-xs text-slate-200">
-                  <li className="flex items-start gap-2">
-                    <span className="text-sky-400 mt-0.5">✓</span>
-                    <span>What exact topics do I already understand?</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-sky-400 mt-0.5">✓</span>
-                    <span>Where are my prerequisite learning gaps?</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-sky-400 mt-0.5">✓</span>
-                    <span>What is the single most valuable action to take right now?</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-sky-400 mt-0.5">✓</span>
-                    <span>Can I demonstrate my knowledge under independent assessment?</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-sky-400 mt-0.5">✓</span>
-                    <span>Did I retain what I learned over weeks and months?</span>
-                  </li>
+                <ul className="space-y-3 text-xs text-slate-200 leading-relaxed">
+                  <li>+ What concepts you have verified prior knowledge of</li>
+                  <li>+ Where your exact prerequisite learning gaps lie</li>
+                  <li>+ The single highest-value action to practice next</li>
+                  <li>+ Whether you can independently demonstrate and retain it</li>
                 </ul>
               </div>
             </div>
@@ -353,139 +338,126 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
         </section>
 
         {/* ============================================================
-            DIFFERENTIATION (§8)
+            5. DIFFERENTIATION — NARRATIVE COMPOSITION (§13)
             ============================================================ */}
-        <section id="differentiation" className="py-20 border-b border-slate-900 bg-slate-900/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                True Adaptive Architecture
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        <section id="differentiation" className="py-24 border-b border-white/[0.06] bg-[#090d15]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-16">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                ARCHITECTURAL DIFFERENTIATION
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight">
                 Knowra is not another AI tutor.
               </h2>
               <p className="text-sm text-slate-400">
-                A comparison of educational paradigms.
+                A comparison of educational mechanisms.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Traditional Course */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    Traditional Course
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-200">Same sequence for everyone.</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Rigid linear syllabus. Advanced learners are forced through basics they already know; struggling learners are pushed forward before prerequisites are mastered.
-                  </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Paradigm 1 */}
+              <div className="space-y-3 border-t border-white/[0.08] pt-6">
+                <div className="font-mono text-[11px] text-slate-400 uppercase tracking-widest">
+                  01 Traditional Course
                 </div>
-                <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-500 font-mono">
-                  Metric: Checkbox completion
+                <div className="text-base font-semibold text-white">
+                  Content → Sequence → Completion
                 </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Identical linear syllabus for every learner. Ignores prior knowledge, pushes forward before prerequisites are mastered, and measures progress by checkboxes.
+                </p>
               </div>
 
-              {/* AI Chatbot */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    AI Chatbot / Prompt Wrapper
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-200">Answers when you ask.</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Stateless conversation. The bot does not maintain an empirical learner state, does not evaluate prerequisite DAG dependencies, and cannot verify long-term memory.
-                  </p>
+              {/* Paradigm 2 */}
+              <div className="space-y-3 border-t border-white/[0.08] pt-6">
+                <div className="font-mono text-[11px] text-slate-400 uppercase tracking-widest">
+                  02 AI Chatbot
                 </div>
-                <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-500 font-mono">
-                  Metric: Message volume
+                <div className="text-base font-semibold text-white">
+                  Prompt → Answer → Forget
                 </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Stateless conversational response. Has no persistent learner state, no prerequisite dependency model, and cannot verify whether understanding is retained.
+                </p>
               </div>
 
-              {/* Knowra */}
-              <div className="rounded-2xl border-2 border-sky-500/50 bg-gradient-to-b from-sky-950/30 to-slate-900/80 p-6 flex flex-col justify-between space-y-4 shadow-xl shadow-sky-500/10">
-                <div className="space-y-3">
-                  <div className="text-xs font-mono font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <span>✨</span>
-                    <span>Knowra Engine</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Adapts based on demonstrated evidence.</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Maintains an immutable baseline, maps competency dependencies, diagnoses starting gaps, and recommends the Next Best Action. Evaluates retention via modern spaced repetition.
-                  </p>
+              {/* Paradigm 3 */}
+              <div className="space-y-3 border-t border-white/40 pt-6">
+                <div className="font-mono text-[11px] text-emerald-400 uppercase tracking-widest">
+                  03 Knowra
                 </div>
-                <div className="pt-4 border-t border-sky-500/20 text-[11px] text-sky-400 font-mono">
-                  Metric: Demonstrated mastery
+                <div className="text-base font-semibold text-white">
+                  Goal → Knowledge → Evidence → Mastery
                 </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Maintains an evolving learner state, models prerequisite dependencies, isolates gaps, and adapts recommendations based on verified evidence and spaced retention.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
         {/* ============================================================
-            HOW IT WORKS (§9)
+            6. HOW KNOWRA WORKS — EDITORIAL SEQUENCE (§14)
             ============================================================ */}
-        <section id="how-it-works" className="py-20 border-b border-slate-900 bg-slate-950">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                The 7-Stage Adaptive Loop
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                How Knowra Works
+        <section id="how-it-works" className="py-24 border-b border-white/[0.06] bg-[#07090e]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-20">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                THE ADAPTIVE ENGINE CYCLE
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight">
+                How Knowra works.
               </h2>
-              <p className="text-sm text-slate-400">
-                From initial goal to verified long-term retention.
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
                 {
-                  step: "01",
-                  title: "Set Your Goal",
-                  desc: "State what you want to learn in plain language. Knowra matches your goal to a structured competency map.",
+                  num: "01",
+                  title: "Set your goal.",
+                  desc: "State your intent in natural language. Knowra aligns it with a curated competency map.",
                 },
                 {
-                  step: "02",
-                  title: "Discover Where You Are",
-                  desc: "A brief starting diagnostic maps your prior knowledge. Topics you already know are credited; gaps are flagged.",
+                  num: "02",
+                  title: "Discover where you are.",
+                  desc: "A brief starting diagnostic benchmarks prior knowledge and flags prerequisite gaps.",
                 },
                 {
-                  step: "03",
-                  title: "See Your Learning Map",
-                  desc: "Inspect your competency graph. See what is mastered, what is currently unblocked, and what requires attention.",
+                  num: "03",
+                  title: "See your learning state.",
+                  desc: "Inspect your competency graph: what is mastered, what needs focus, what is unblocked.",
                 },
                 {
-                  step: "04",
-                  title: "Get Your Next Best Action",
-                  desc: "Instead of choosing from dozens of modules, Knowra recommends the single highest-value exercise.",
+                  num: "04",
+                  title: "Get your next best action.",
+                  desc: "No guessing. Knowra computes the single highest-value exercise for your current state.",
                 },
                 {
-                  step: "05",
-                  title: "Produce Evidence",
-                  desc: "Solve practical problems, explain concepts in your own words (Feynman), and complete spaced review cards.",
+                  num: "05",
+                  title: "Produce evidence.",
+                  desc: "Solve practical problems, explain concepts in your own words, and recall spaced review cards.",
                 },
                 {
-                  step: "06",
-                  title: "Update Your Mastery",
-                  desc: "Your mastery score and confidence update mathematically based on verified evidence, not time spent.",
+                  num: "06",
+                  title: "Update mastery.",
+                  desc: "Your mastery score updates mathematically based on verified performance, not time spent.",
                 },
                 {
-                  step: "07",
-                  title: "Adapt Continuously",
-                  desc: "The moment your mastery shifts or a gap is resolved, the Next Best Action dynamically adapts.",
+                  num: "07",
+                  title: "Adapt continuously.",
+                  desc: "As your knowledge shifts, downstream recommendations immediately adapt with you.",
                 },
                 {
-                  step: "08",
-                  title: "Measure Learning Gain",
-                  desc: "Independent post-assessments compare your final competence against baseline to verify genuine progress.",
+                  num: "08",
+                  title: "Measure learning gain.",
+                  desc: "Independent post-assessments evaluate your true progress against your starting baseline.",
                 },
-              ].map((item) => (
-                <div key={item.step} className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-2">
-                  <div className="text-xs font-mono font-bold text-sky-400">{item.step}</div>
-                  <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+              ].map((step) => (
+                <div key={step.num} className="border-t border-white/[0.08] pt-5 space-y-2">
+                  <div className="font-mono text-xs text-slate-400">{step.num}</div>
+                  <div className="text-sm font-semibold text-white">{step.title}</div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{step.desc}</p>
                 </div>
               ))}
             </div>
@@ -493,87 +465,54 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
         </section>
 
         {/* ============================================================
-            PRODUCT DEMONSTRATION (§10)
+            7. PRODUCT DEMONSTRATION — TRANSCRIPT (§15)
             ============================================================ */}
-        <section id="demonstration" className="py-20 border-b border-slate-900 bg-slate-900/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-              <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                Concrete Execution
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Real Adaptive Learning in Action
+        <section id="demonstration" className="py-24 border-b border-white/[0.06] bg-[#090d15]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-16">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                EMPIRICAL DEMONSTRATION
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight">
+                Real adaptive learning in action.
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400 font-mono">
-                Example learner journey in Python Junior
+              <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+                ILLUSTRATIVE EXECUTION TRANSCRIPT • PYTHON JUNIOR
               </p>
             </div>
 
-            <div className="max-w-4xl mx-auto rounded-2xl border border-slate-800 bg-slate-900/70 p-6 sm:p-8 space-y-6">
-              {/* Step A: Goal */}
-              <div className="flex items-start gap-4">
-                <span className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">
-                  A
-                </span>
-                <div className="space-y-1">
-                  <div className="text-xs text-slate-400 font-mono">1. Goal Entry</div>
-                  <div className="text-sm font-bold text-white">&ldquo;I want to become proficient in Python.&rdquo;</div>
-                  <p className="text-xs text-slate-400">Target Domain: Python Junior (7 Core Competencies)</p>
+            <div className="max-w-4xl border border-white/[0.08] rounded-xl bg-[#07090e] p-6 sm:p-10 space-y-8 font-mono text-xs">
+              <div className="space-y-1 border-b border-white/[0.06] pb-4">
+                <span className="text-slate-500 uppercase tracking-wider text-[10px]">01 — GOAL</span>
+                <div className="text-sm text-white font-sans font-semibold">
+                  &ldquo;I want to become proficient in Python programming.&rdquo;
                 </div>
               </div>
 
-              {/* Step B: Starting Point */}
-              <div className="flex items-start gap-4">
-                <span className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">
-                  B
-                </span>
-                <div className="space-y-1.5 flex-1">
-                  <div className="text-xs text-slate-400 font-mono">2. Diagnostic Baseline</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-950/60">
-                      <span className="font-semibold text-slate-200">Variables &amp; Types:</span>{" "}
-                      <span className="text-amber-400 font-mono">Developing (40%)</span>
-                    </div>
-                    <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-950/60">
-                      <span className="font-semibold text-slate-200">Control Flow:</span>{" "}
-                      <span className="text-rose-400 font-mono">Gap Detected</span>
-                    </div>
-                  </div>
+              <div className="space-y-2 border-b border-white/[0.06] pb-4">
+                <span className="text-slate-500 uppercase tracking-wider text-[10px]">02 — STARTING POINT DIAGNOSTIC</span>
+                <div className="text-slate-300 font-sans">
+                  Variables &amp; Types: Developing (40%) • Control Flow: Gap Detected (Blocked)
                 </div>
               </div>
 
-              {/* Step C: Recommendation */}
-              <div className="flex items-start gap-4">
-                <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">
-                  C
-                </span>
-                <div className="space-y-2 flex-1">
-                  <div className="text-xs text-slate-400 font-mono">3. Next Best Action</div>
-                  <div className="p-4 rounded-xl border border-sky-500/30 bg-slate-950/70 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white">Practice: Variables &amp; Data Types</span>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-500/10 text-sky-400">PRACTICE</span>
-                    </div>
-                    <p className="text-xs text-slate-300">
-                      <span className="text-sky-400 font-semibold">Engine Rationale:</span> &ldquo;Your current mastery is below target and this competency affects your next step in Control Flow.&rdquo;
-                    </p>
-                  </div>
+              <div className="space-y-2 border-b border-white/[0.06] pb-4">
+                <span className="text-slate-500 uppercase tracking-wider text-[10px]">03 — NEXT BEST ACTION</span>
+                <div className="text-white font-sans font-semibold">
+                  Practice: Variables &amp; Data Types
+                </div>
+                <div className="text-slate-400 font-sans">
+                  Rationale: &ldquo;Your current mastery is below target and this competency affects your next step in Control Flow.&rdquo;
                 </div>
               </div>
 
-              {/* Step D: Evidence & Adaptation */}
-              <div className="flex items-start gap-4">
-                <span className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">
-                  D
-                </span>
-                <div className="space-y-1.5 flex-1">
-                  <div className="text-xs text-slate-400 font-mono">4. Evidence &amp; Mastery Adaptation</div>
-                  <p className="text-xs text-slate-300">
-                    Learner completes the practice exercise scoring 90%. Variables &amp; Types mastery rises to <span className="font-mono text-emerald-400 font-bold">72% (Proficient)</span>.
-                  </p>
-                  <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-xs text-emerald-300">
-                    ✓ Gap resolved in prerequisite. Control Flow is immediately unblocked as the new recommendation.
-                  </div>
+              <div className="space-y-2">
+                <span className="text-slate-500 uppercase tracking-wider text-[10px]">04 — OUTCOME &amp; ADAPTATION</span>
+                <div className="text-emerald-400 font-sans">
+                  Exercise completed (Score: 90%). Variables mastery rises to 72% (Proficient).
+                </div>
+                <div className="text-slate-300 font-sans">
+                  Prerequisite satisfied. Control Flow is immediately promoted to the active recommendation.
                 </div>
               </div>
             </div>
@@ -581,223 +520,154 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
         </section>
 
         {/* ============================================================
-            COMPLETION != MASTERY (§11)
+            8. COMPLETION IS NOT MASTERY — MAJOR EDITORIAL MOMENT (§16)
             ============================================================ */}
-        <section className="py-20 border-b border-slate-900 bg-slate-950">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                Pedagogical Rigor
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Completion is not mastery.
-              </h2>
-              <p className="text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed">
-                Passive consumption creates the illusion of learning. Knowra mathematically separates activity completion from true competence.
-              </p>
-            </div>
+        <section className="py-28 sm:py-36 border-b border-white/[0.06] bg-[#07090e]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-8">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                PEDAGOGICAL PHILOSOPHY
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 max-w-5xl mx-auto text-xs">
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1.5">
-                <div className="font-bold text-slate-300">Activity Completion</div>
-                <p className="text-slate-400">An action was taken (e.g. exercise submitted, card answered).</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1.5">
-                <div className="font-bold text-sky-400">Demonstrated Evidence</div>
-                <p className="text-slate-400">Verifiable performance score evaluated against structured rubrics.</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1.5">
-                <div className="font-bold text-emerald-400">Mastery Score</div>
-                <p className="text-slate-400">Probabilistic measure of competency understanding (0–100%).</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1.5">
-                <div className="font-bold text-indigo-400">Confidence Metric</div>
-                <p className="text-slate-400">Statistical certainty of the estimate based on evidence volume.</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1.5">
-                <div className="font-bold text-purple-400">Retention &amp; Recall</div>
-                <p className="text-slate-400">Time-decayed memory stability evaluated using modern FSRS spacing.</p>
+              <h2 className="text-4xl sm:text-6xl font-light tracking-tight text-white leading-none">
+                COMPLETION
+                <br />
+                IS NOT
+                <br />
+                <span className="font-semibold text-slate-300">MASTERY.</span>
+              </h2>
+
+              <p className="text-base sm:text-lg text-slate-300 font-normal leading-relaxed max-w-2xl">
+                An activity can be completed. A question can be answered. A lesson can be finished.
+                None of those alone tells you what you actually know.
+              </p>
+
+              <div className="pt-8 border-t border-white/[0.08] flex flex-wrap items-center gap-3 text-xs font-mono uppercase tracking-widest text-slate-400">
+                <span>Activity</span>
+                <span>→</span>
+                <span className="text-white">Evidence</span>
+                <span>→</span>
+                <span className="text-white">Mastery</span>
+                <span>→</span>
+                <span className="text-emerald-400">Retention</span>
               </div>
             </div>
           </div>
         </section>
 
         {/* ============================================================
-            CURATED DOMAINS (§12)
+            9. CURATED DOMAINS — ELEGANT INDEX (§17, §18)
             ============================================================ */}
-        <section id="curriculum" className="py-20 border-b border-slate-900 bg-slate-900/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                Curriculum
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Curated Learning Paths
+        <section id="curriculum" className="py-24 border-b border-white/[0.06] bg-[#090d15]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-16">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                CURATED LEARNING PATHS
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight">
+                Currently curated.
               </h2>
               <p className="text-sm text-slate-400">
                 Start with our curated learning paths in Python, Mathematics, and Excel.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Python Junior */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col justify-between space-y-5">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-sky-400 font-bold uppercase">Python Junior</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      7 Competencies
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Foundational Programming</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Variables, expressions, control flow, loops, functions, lists, and debugging with verified code logic.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleCtaClick("domain_python")}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-750 transition-colors"
+            <div className="divide-y divide-white/[0.06] border-t border-b border-white/[0.06] max-w-4xl">
+              {[
+                {
+                  num: "01",
+                  title: "Python Junior",
+                  domainKey: "domain_python",
+                  desc: "Variables, control flow, functions, data structures, and verified code logic.",
+                  scope: "7 Core Competencies",
+                },
+                {
+                  num: "02",
+                  title: "Mathematics for Exams",
+                  domainKey: "domain_math",
+                  desc: "Linear systems, quadratic formulas, functions, graphing, and coordinate geometry.",
+                  scope: "8 Core Competencies",
+                },
+                {
+                  num: "03",
+                  title: "Excel Pro",
+                  domainKey: "domain_excel",
+                  desc: "Logical functions, modern lookups (XLOOKUP), conditional math, and pivot tables.",
+                  scope: "8 Core Competencies",
+                },
+              ].map((domain) => (
+                <div
+                  key={domain.num}
+                  className="py-6 sm:py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                 >
-                  Explore Python Path →
-                </button>
-              </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs text-slate-500">{domain.num}</span>
+                      <h3 className="text-lg font-medium text-white group-hover:text-slate-300 transition-colors">
+                        {domain.title}
+                      </h3>
+                      <span className="font-mono text-[10px] text-slate-500 uppercase tracking-wider">
+                        • {domain.scope}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 max-w-xl pl-7">
+                      {domain.desc}
+                    </p>
+                  </div>
 
-              {/* Mathematics */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col justify-between space-y-5">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-indigo-400 font-bold uppercase">Mathematics</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      8 Competencies
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Exam Preparation</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Linear equations, quadratic formulas, functions, graphs, coordinate geometry, trigonometry, and statistics.
-                  </p>
+                  <button
+                    onClick={() => handleCtaClick(domain.domainKey)}
+                    className="self-start sm:self-auto text-xs font-medium text-slate-400 group-hover:text-white transition-colors pl-7 sm:pl-0 flex items-center gap-1"
+                  >
+                    <span>Enter path</span>
+                    <span>→</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleCtaClick("domain_math")}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-750 transition-colors"
-                >
-                  Explore Math Path →
-                </button>
-              </div>
+              ))}
+            </div>
 
-              {/* Excel Pro */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col justify-between space-y-5">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-teal-400 font-bold uppercase">Excel Pro</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      8 Competencies
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Professional Analytics</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Logical formulas, XLOOKUP, conditional aggregations, text transformations, pivot tables, and data validation.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleCtaClick("domain_excel")}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-750 transition-colors"
-                >
-                  Explore Excel Path →
-                </button>
+            {/* Persona Statement Integration (§18) */}
+            <div className="mt-16 pt-8 border-t border-white/[0.06] max-w-4xl flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
+              <div className="font-mono text-[11px] text-slate-400 uppercase tracking-widest">
+                FOR LEARNERS WHO TAKE MASTERY SERIOUSLY
               </div>
+              <p className="text-xs text-slate-400 max-w-md">
+                Build a foundational skill. Prepare for a high-stakes exam. Verify your true competence. Knowra adapts to where you actually are.
+              </p>
             </div>
           </div>
         </section>
 
         {/* ============================================================
-            WHO KNOWRA IS FOR (§13)
+            10. PRODUCT INSTRUMENT PREVIEW (§19)
             ============================================================ */}
-        <section className="py-20 border-b border-slate-900 bg-slate-950">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Target Learners
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Built for Learners Who Want Verifiable Competence
+        <section id="preview" className="py-24 border-b border-white/[0.06] bg-[#07090e]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-3xl space-y-4 mb-12">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                THE LIVE INSTRUMENT
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-light text-white tracking-tight">
+                A look inside Knowra.
               </h2>
-              <p className="text-sm text-slate-400">
-                Designed for those who value measurable skill over endless video watching.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-              <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
-                <div className="text-xl">👩‍💻</div>
-                <h3 className="text-sm font-bold text-white">Technical Skill Seekers</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Learn programming without skipping prerequisites or getting lost in tutorial hell.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
-                <div className="text-xl">📊</div>
-                <h3 className="text-sm font-bold text-white">Career Professionals</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Upskill in tools like Excel without sitting through basics you already use every day.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
-                <div className="text-xl">🎓</div>
-                <h3 className="text-sm font-bold text-white">Exam Candidates</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Detect hidden prerequisite gaps before high-stakes tests and target weak areas directly.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
-                <div className="text-xl">🧠</div>
-                <h3 className="text-sm font-bold text-white">Self-Directed Learners</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Understand your true knowledge state and follow a personalized path that updates as you grow.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ============================================================
-            PRODUCT SCREEN PREVIEW (§14)
-            ============================================================ */}
-        <section id="preview" className="py-20 border-b border-slate-900 bg-slate-900/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
-              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                Product Experience
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                A Look Inside the Knowra Engine
-              </h2>
-              <p className="text-sm text-slate-400">
-                Explore key components of the live learning interface.
-              </p>
             </div>
 
             {/* Preview Navigation */}
-            <div className="flex justify-center gap-2 mb-8 overflow-x-auto pb-2">
+            <div className="flex gap-2 mb-8 overflow-x-auto pb-1 text-xs font-mono">
               {[
                 { id: "nba", label: "Next Best Action" },
                 { id: "map", label: "Learning Map" },
-                { id: "practice", label: "Interactive Practice" },
+                { id: "practice", label: "Practice Exercise" },
                 { id: "progress", label: "Progress & Gain" },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActivePreviewTab(tab.id as typeof activePreviewTab)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded transition-colors whitespace-nowrap ${
                     activePreviewTab === tab.id
-                      ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20"
-                      : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   {tab.label}
@@ -805,91 +675,84 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
               ))}
             </div>
 
-            {/* Screen Content Preview */}
-            <div className="max-w-4xl mx-auto rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8 shadow-2xl">
+            {/* Instrument Container */}
+            <div className="max-w-4xl border border-white/[0.08] rounded-xl bg-[#0b0f17] p-6 sm:p-8">
               {activePreviewTab === "nba" && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                    <span className="text-xs font-bold text-sky-400 uppercase">Recommended Focus</span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">PRACTICE</span>
+                  <div className="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-white/[0.06] pb-3">
+                    <span>ACTION DISPATCH</span>
+                    <span className="text-white">PRACTICE • EST. 8 MINS</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-white">Variables &amp; Data Types</h3>
-                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-xs text-slate-300">
-                    <span className="text-sky-400 font-semibold">Why this action:</span> Prerequisite mastery is below target (40%). Strengthening this foundation will unblock upcoming conditional logic.
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <button onClick={() => handleCtaClick("preview_nba")} className="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-500 text-white">
-                      Start Activity →
-                    </button>
-                  </div>
+                  <h3 className="text-xl font-semibold text-white">Variables &amp; Data Types</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
+                    Prerequisite mastery is below target (40%). Strengthening this foundation will unblock upcoming conditional branching.
+                  </p>
+                  <button
+                    onClick={() => handleCtaClick("preview_nba")}
+                    className="mt-2 px-4 py-2 rounded-lg text-xs font-medium text-[#07090e] bg-white hover:bg-slate-200 transition-colors"
+                  >
+                    Begin Activity →
+                  </button>
                 </div>
               )}
 
               {activePreviewTab === "map" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Interactive Competency Graph</span>
-                    <span className="text-xs text-slate-500">7 Competencies</span>
+                <div className="space-y-4 font-mono text-xs">
+                  <div className="flex items-center justify-between text-slate-400 border-b border-white/[0.06] pb-3">
+                    <span>PREREQUISITE DEPENDENCY GRAPH</span>
+                    <span className="text-slate-500">7 COMPETENCIES</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="p-3 rounded-lg border border-sky-500/40 bg-sky-500/10">
-                      <div className="font-bold text-white">Variables &amp; Types</div>
-                      <div className="text-[11px] text-sky-300 mt-0.5">Current Focus • 40% Mastery</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="p-3 rounded border border-white/20 bg-white/[0.02]">
+                      <div className="text-white font-medium">Variables &amp; Types</div>
+                      <div className="text-slate-400 text-[11px] mt-0.5">Active Focus • 40% Baseline</div>
                     </div>
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/60">
-                      <div className="font-bold text-slate-300">Control Flow</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Prerequisite: Variables &amp; Types</div>
-                    </div>
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/60">
-                      <div className="font-bold text-slate-300">Loops &amp; Iteration</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Prerequisite: Control Flow</div>
-                    </div>
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/60">
-                      <div className="font-bold text-slate-300">Functions &amp; Scope</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Prerequisite: Loops &amp; Iteration</div>
+                    <div className="p-3 rounded border border-white/[0.06] bg-transparent">
+                      <div className="text-slate-300">Control Flow</div>
+                      <div className="text-slate-500 text-[11px] mt-0.5">Prerequisite: Variables</div>
                     </div>
                   </div>
                 </div>
               )}
 
               {activePreviewTab === "practice" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                    <span className="text-xs font-bold text-emerald-400 uppercase">Practice Exercise</span>
-                    <span className="text-xs text-slate-400">Question 1 of 3</span>
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between font-mono text-slate-400 border-b border-white/[0.06] pb-3">
+                    <span>INTERACTIVE EXERCISE</span>
+                    <span>1 OF 3</span>
                   </div>
-                  <div className="text-sm font-semibold text-white">
-                    What is the type and value of the expression <code className="bg-slate-900 px-1.5 py-0.5 rounded font-mono text-sky-300">type(3.14)</code> in Python?
+                  <div className="text-sm font-medium text-white">
+                    What is the type of the expression <code className="font-mono bg-white/10 px-1.5 py-0.5 rounded">type(3.14)</code> in Python?
                   </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 text-slate-300">&lt;class &apos;int&apos;&gt;</div>
-                    <div className="p-2.5 rounded-lg border border-sky-500 bg-sky-500/10 text-white font-medium">&lt;class &apos;float&apos;&gt; ✓</div>
-                    <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/40 text-slate-300">&lt;class &apos;str&apos;&gt;</div>
+                  <div className="space-y-2 font-mono text-xs max-w-md">
+                    <div className="p-2.5 rounded border border-white/[0.06] text-slate-400">&lt;class &apos;int&apos;&gt;</div>
+                    <div className="p-2.5 rounded border border-white/40 bg-white/[0.04] text-white">&lt;class &apos;float&apos;&gt; ✓ Demonstrated</div>
+                    <div className="p-2.5 rounded border border-white/[0.06] text-slate-400">&lt;class &apos;str&apos;&gt;</div>
                   </div>
                 </div>
               )}
 
               {activePreviewTab === "progress" && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                    <span className="text-xs font-bold text-purple-400 uppercase">Independent Learning Gain</span>
-                    <span className="text-xs text-slate-400">Continuous Assessment</span>
+                  <div className="flex items-center justify-between font-mono text-xs text-slate-400 border-b border-white/[0.06] pb-3">
+                    <span>INDEPENDENT LEARNING GAIN</span>
+                    <span className="text-slate-500">PRE/POST VERIFICATION</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
-                      <div className="text-[10px] text-slate-400">Baseline Diagnostic</div>
-                      <div className="text-lg font-bold font-mono text-white mt-1">57%</div>
+                  <div className="grid grid-cols-3 gap-4 font-mono text-center pt-2">
+                    <div className="p-3 rounded border border-white/[0.06]">
+                      <div className="text-[10px] text-slate-500 uppercase">Baseline</div>
+                      <div className="text-base font-bold text-white mt-1">57%</div>
                     </div>
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
-                      <div className="text-[10px] text-slate-400">Current Mastery</div>
-                      <div className="text-lg font-bold font-mono text-emerald-400 mt-1">72%</div>
+                    <div className="p-3 rounded border border-white/[0.06]">
+                      <div className="text-[10px] text-slate-500 uppercase">Demonstrated</div>
+                      <div className="text-base font-bold text-emerald-400 mt-1">72%</div>
                     </div>
-                    <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
-                      <div className="text-[10px] text-slate-400">Evidence Count</div>
-                      <div className="text-lg font-bold font-mono text-sky-400 mt-1">8 proofs</div>
+                    <div className="p-3 rounded border border-white/[0.06]">
+                      <div className="text-[10px] text-slate-500 uppercase">Verified Evidence</div>
+                      <div className="text-base font-bold text-slate-300 mt-1">8 proofs</div>
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 text-center">
+                  <p className="text-[11px] text-slate-500 text-center font-mono">
                     Knowra measures learning progress through independent assessment.
                   </p>
                 </div>
@@ -899,67 +762,63 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
         </section>
 
         {/* ============================================================
-            FINAL CONVERSION CTA (§17)
+            11. FINAL CONVERSION CTA — QUIET COMMANDING CLOSER (§20)
             ============================================================ */}
-        <section className="py-20 sm:py-28 border-b border-slate-900 bg-gradient-to-b from-slate-950 via-slate-900/40 to-slate-950 relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center space-y-6">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-              Start Today
-            </span>
+        <section className="py-28 sm:py-36 border-b border-white/[0.06] bg-[#07090e]">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8">
+            <div className="max-w-2xl space-y-6">
+              <div className="font-mono text-[11px] tracking-[0.25em] text-slate-400 uppercase">
+                BEGIN
+              </div>
 
-            <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight max-w-2xl mx-auto leading-tight">
-              Stop guessing what to learn next.
-            </h2>
+              <h2 className="text-4xl sm:text-5xl font-light tracking-tight text-white leading-tight">
+                STOP GUESSING
+                <br />
+                <span className="font-semibold text-slate-200">
+                  WHAT TO LEARN NEXT.
+                </span>
+              </h2>
 
-            <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto leading-relaxed">
-              Start with your goal. Knowra helps you discover where you are, what needs attention, and what to do next.
-            </p>
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                Start with your goal. Knowra helps you discover where you are,
+                what needs attention, and what to do next.
+              </p>
 
-            <div className="pt-4">
-              <button
-                onClick={() => handleCtaClick("final_cta")}
-                className="px-10 py-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-2xl shadow-sky-500/30 transition-all transform hover:-translate-y-0.5"
-              >
-                Start Learning
-              </button>
+              <div className="pt-2">
+                <button
+                  onClick={() => handleCtaClick("final_cta")}
+                  className="px-8 py-4 rounded-lg text-xs font-semibold uppercase tracking-wider text-[#07090e] bg-white hover:bg-slate-200 transition-all"
+                >
+                  Start Learning →
+                </button>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
       {/* ============================================================
-          FOOTER (§18)
+          12. FOOTER — MINIMALIST EDITORIAL STATEMENT
           ============================================================ */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-12 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                K
-              </div>
-              <div>
-                <span className="font-bold text-white tracking-tight">KNOWRA</span>
-                <span className="text-slate-500 ml-2">— Adaptive Learning Platform</span>
-              </div>
+      <footer className="bg-[#07090e] py-12 text-xs text-slate-500 font-mono">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8">
+          <div className="flex flex-col sm:flex-row items-baseline justify-between gap-6 pb-8 border-b border-white/[0.06]">
+            <div>
+              <span className="font-semibold text-white tracking-widest uppercase">KNOWRA</span>
+              <span className="ml-2 text-slate-500">— ADAPTIVE LEARNING ENGINE</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-6 text-slate-400">
-              <a href="#how-it-works" className="hover:text-slate-200 transition-colors">How It Works</a>
-              <a href="#differentiation" className="hover:text-slate-200 transition-colors">Why Knowra</a>
-              <a href="#curriculum" className="hover:text-slate-200 transition-colors">Curated Domains</a>
-              <button onClick={onSignIn} className="hover:text-slate-200 transition-colors">
-                Learner Sign In
-              </button>
+            <div className="flex items-center gap-6">
+              <a href="#how-it-works" className="hover:text-slate-300 transition-colors">How It Works</a>
+              <a href="#curriculum" className="hover:text-slate-300 transition-colors">Curriculum</a>
+              <a href="#differentiation" className="hover:text-slate-300 transition-colors">Why Knowra</a>
+              <button onClick={onSignIn} className="hover:text-slate-300 transition-colors">Sign in</button>
             </div>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
-            <div>
-              &ldquo;The Learning Engine knows what the learner knows.&rdquo;
-            </div>
-            <div>
-              Knowra Beta 1.0 • Evidence-based adaptive learning engine
-            </div>
+          <div className="pt-6 flex flex-col sm:flex-row items-baseline justify-between gap-4 text-[11px] text-slate-400">
+            <div>&ldquo;The Learning Engine knows what the learner knows.&rdquo;</div>
+            <div>Knowra Beta 1.0 • Evidence-based adaptive learning platform</div>
           </div>
         </div>
       </footer>
