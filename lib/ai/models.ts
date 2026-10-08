@@ -45,19 +45,32 @@ export type AITask =
 
 /**
  * Resolves the configured model ID for a specific pedagogical task.
- * Fails clearly if the required environment variable is missing.
- * Does NOT silently fall back to arbitrary default models.
+ * Strategy (§S7.5):
+ * 1. Task-specific model environment variable (e.g. TUTOR_MODEL).
+ * 2. If unconfigured or empty, fallback to DEFAULT_MODEL.
+ * 3. If DEFAULT_MODEL is also missing, fail explicitly.
+ * NEVER silently select an arbitrary random model.
  */
 export function getModel(task: ModelTask | string): string {
   const normalized = task.toLowerCase() as ModelTask;
   if (!(normalized in models)) {
     throw new Error(`Model not configured for task: ${task}`);
   }
-  const model = models[normalized];
-  if (!model || typeof model !== "string" || model.trim() === "") {
+  const taskModel = models[normalized];
+  const model =
+    taskModel && typeof taskModel === "string" && taskModel.trim() !== ""
+      ? taskModel.trim()
+      : process.env.DEFAULT_MODEL?.trim();
+
+  if (!model || model === "") {
     throw new Error(`Model not configured for task: ${task}`);
   }
-  return model.trim();
+  return model;
+}
+
+export function getDefaultModel(): string | undefined {
+  const def = process.env.DEFAULT_MODEL;
+  return def && def.trim() !== "" ? def.trim() : undefined;
 }
 
 /**

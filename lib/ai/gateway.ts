@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { openRouterClient, OpenRouterMessage } from "./openrouter";
-import { getModel, ModelTask, AITask } from "./models";
+import { ModelTask, AITask } from "./models";
 import { telemetryService, AIUsageRecord } from "./usage";
 import { logger } from "@/lib/observability/logger";
 import { getAIConfig } from "./config";
+import { aiModelOrchestrator, RequirementLevel } from "./orchestrator";
 
 export type GatewayTask = ModelTask | AITask;
 
@@ -16,6 +17,13 @@ export interface GenerateTextOptions {
   temperature?: number;
   maxTokens?: number;
   modelOverride?: string;
+
+  // S7.5 Context Parameters
+  domain?: string;
+  difficulty?: number;
+  latencyRequirement?: RequirementLevel;
+  qualityRequirement?: RequirementLevel;
+  costSensitivity?: RequirementLevel;
 }
 
 export interface GenerateStructuredOptions<T extends z.ZodTypeAny> extends GenerateTextOptions {
@@ -48,18 +56,34 @@ export class AIGateway {
       temperature: options?.temperature,
       maxTokens: options?.maxTokens,
       modelOverride: options?.modelOverride,
+      domain: options?.domain,
+      difficulty: options?.difficulty,
+      latencyRequirement: options?.latencyRequirement,
+      qualityRequirement: options?.qualityRequirement,
+      costSensitivity: options?.costSensitivity,
     });
   }
 
   /**
    * Generates a raw text completion through the OpenRouter gateway.
-   * Model selection is environment-driven and resolved per task from the registry.
+   * Model selection is determined by the AI Model Orchestrator (§S7.5).
+   * Supports operational fallback on network/timeout/5xx/404 failures.
    */
   async generateText(options: GenerateTextOptions): Promise<AIGatewayResult<string>> {
     const { task, systemPrompt, userPrompt, promptVersion, userId, temperature, maxTokens, modelOverride } = options;
-    const model = modelOverride || getModel(task);
     const startTime = Date.now();
     const config = getAIConfig();
+
+    // 1. Orchestrator model selection
+    const decision = aiModelOrchestrator.selectModel({
+      task,
+      domain: options.domain,
+      difficulty: options.difficulty,
+      latencyRequirement: options.latencyRequirement,
+      qualityRequirement: options.qualityRequirement,
+      costSensitivity: options.costSensitivity,
+    });
+    const model = modelOverride || decision.model;
 
     const messages: OpenRouterMessage[] = [
       { role: "system", content: systemPrompt },
@@ -85,6 +109,9 @@ export class AIGateway {
         completionTokens: response.completionTokens,
         latencyMs,
         status: "SUCCESS",
+        orchestrationPolicy: decision.policyVersion,
+        selectionReason: decision.reason,
+        fallbackUsed: false,
       });
 
       return {
@@ -95,6 +122,53 @@ export class AIGateway {
         promptVersion,
       };
     } catch (err: unknown) {
+      // 2. Operational Fallback Attempt (§S7.5)
+      if (!modelOverride && decision.fallbackModel && decision.fallbackModel !== model && aiModelOrchestrator.isOperationalError(err)) {
+        logger.warn(`AI Gateway: Operational failure on primary model ${model}. Attempting fallback to ${decision.fallbackModel}...`, {
+          task,
+          primaryModel: model,
+          fallbackModel: decision.fallbackModel,
+          error: err instanceof Error ? err.message : String(err),
+        });
+
+        try {
+          const fallbackResponse = await openRouterClient.complete({
+            model: decision.fallbackModel,
+            messages,
+            temperature: temperature ?? config.temperature,
+            maxTokens,
+          });
+
+          const latencyMs = Date.now() - startTime;
+          const usage = await telemetryService.recordUsage({
+            userId,
+            operation: `generateText:${task}`,
+            task: String(task).toLowerCase(),
+            provider: config.provider,
+            model: fallbackResponse.model,
+            promptTokens: fallbackResponse.promptTokens,
+            completionTokens: fallbackResponse.completionTokens,
+            latencyMs,
+            status: "SUCCESS",
+            orchestrationPolicy: decision.policyVersion,
+            selectionReason: decision.reason,
+            fallbackUsed: true,
+            fallbackModel: decision.fallbackModel,
+            fallbackReason: err instanceof Error ? err.message : String(err),
+          });
+
+          return {
+            data: fallbackResponse.content,
+            rawText: fallbackResponse.content,
+            usage,
+            model: fallbackResponse.model,
+            promptVersion,
+          };
+        } catch (fallbackErr: unknown) {
+          logger.error(`AI Gateway: Fallback model ${decision.fallbackModel} also failed`, fallbackErr);
+        }
+      }
+
       const latencyMs = Date.now() - startTime;
       const errorMessage = err instanceof Error ? err.message : String(err);
 
@@ -109,6 +183,8 @@ export class AIGateway {
         latencyMs,
         status: "FAILED",
         errorMessage,
+        orchestrationPolicy: decision.policyVersion,
+        selectionReason: decision.reason,
       });
 
       logger.error(`AI Gateway generation failed for task ${task}`, err, { task, model, promptVersion });
@@ -117,17 +193,28 @@ export class AIGateway {
   }
 
   /**
-   * Generates a structured output validated strictly against a Zod schema (§32).
-   * Model selection is environment-driven and resolved per task from the registry.
-   * Strips markdown fences if present and handles schema validation errors.
+   * Generates a structured output validated strictly against a Zod schema (§32, §S7.5).
+   * Model selection is determined by the AI Model Orchestrator.
+   * Strips markdown fences if present and validates against Zod schema.
+   * Operational fallback applies only to infrastructure/network failures, NOT validation errors.
    */
   async generateStructured<T extends z.ZodTypeAny>(
     options: GenerateStructuredOptions<T>
   ): Promise<AIGatewayResult<z.infer<T>>> {
     const { task, systemPrompt, userPrompt, promptVersion, schema, userId, temperature, maxTokens, modelOverride } = options;
-    const model = modelOverride || getModel(task);
     const startTime = Date.now();
     const config = getAIConfig();
+
+    // 1. Orchestrator model selection
+    const decision = aiModelOrchestrator.selectModel({
+      task,
+      domain: options.domain,
+      difficulty: options.difficulty,
+      latencyRequirement: options.latencyRequirement,
+      qualityRequirement: options.qualityRequirement,
+      costSensitivity: options.costSensitivity,
+    });
+    const model = modelOverride || decision.model;
 
     const formattedSystemPrompt = `${systemPrompt}\n\nIMPORTANT: You MUST respond ONLY with valid JSON matching the requested schema. Do not enclose in markdown code blocks if possible.`;
 
@@ -135,6 +222,12 @@ export class AIGateway {
       { role: "system", content: formattedSystemPrompt },
       { role: "user", content: userPrompt },
     ];
+
+    let responseContent: string;
+    let responseModel: string;
+    let responsePromptTokens: number;
+    let responseCompletionTokens: number;
+    let wasFallbackUsed = false;
 
     try {
       const response = await openRouterClient.complete({
@@ -145,84 +238,148 @@ export class AIGateway {
         responseFormat: { type: "json_object" },
       });
 
-      const latencyMs = Date.now() - startTime;
-      let cleanedContent = response.content.trim();
+      responseContent = response.content;
+      responseModel = response.model;
+      responsePromptTokens = response.promptTokens;
+      responseCompletionTokens = response.completionTokens;
+    } catch (operationalErr: unknown) {
+      // 2. Operational Fallback Attempt for infrastructure errors
+      if (!modelOverride && decision.fallbackModel && decision.fallbackModel !== model && aiModelOrchestrator.isOperationalError(operationalErr)) {
+        logger.warn(`AI Gateway structured: Operational failure on model ${model}. Attempting fallback to ${decision.fallbackModel}...`, {
+          task,
+          primaryModel: model,
+          fallbackModel: decision.fallbackModel,
+          error: operationalErr instanceof Error ? operationalErr.message : String(operationalErr),
+        });
 
-      // Clean up markdown code blocks if returned
-      if (cleanedContent.startsWith("```json")) {
-        cleanedContent = cleanedContent.replace(/^```json\s*/, "").replace(/```$/, "").trim();
-      } else if (cleanedContent.startsWith("```")) {
-        cleanedContent = cleanedContent.replace(/^```\s*/, "").replace(/```$/, "").trim();
-      }
+        try {
+          const fallbackResp = await openRouterClient.complete({
+            model: decision.fallbackModel,
+            messages,
+            temperature: temperature ?? config.temperature,
+            maxTokens,
+            responseFormat: { type: "json_object" },
+          });
 
-      let parsedJson: unknown;
-      try {
-        parsedJson = JSON.parse(cleanedContent);
-      } catch (jsonErr) {
+          responseContent = fallbackResp.content;
+          responseModel = fallbackResp.model;
+          responsePromptTokens = fallbackResp.promptTokens;
+          responseCompletionTokens = fallbackResp.completionTokens;
+          wasFallbackUsed = true;
+        } catch (fallbackErr: unknown) {
+          const latencyMs = Date.now() - startTime;
+          const errorMessage = operationalErr instanceof Error ? operationalErr.message : String(operationalErr);
+          await telemetryService.recordUsage({
+            userId,
+            operation: `generateStructured:${task}`,
+            task: String(task).toLowerCase(),
+            provider: config.provider,
+            model,
+            promptTokens: 0,
+            completionTokens: 0,
+            latencyMs,
+            status: "FAILED",
+            errorMessage,
+            orchestrationPolicy: decision.policyVersion,
+            selectionReason: decision.reason,
+          });
+          logger.error(`AI Gateway structured: Fallback model ${decision.fallbackModel} also failed`, fallbackErr);
+          throw operationalErr;
+        }
+      } else {
+        const latencyMs = Date.now() - startTime;
+        const errorMessage = operationalErr instanceof Error ? operationalErr.message : String(operationalErr);
         await telemetryService.recordUsage({
           userId,
           operation: `generateStructured:${task}`,
           task: String(task).toLowerCase(),
           provider: config.provider,
-          model: response.model,
-          promptTokens: response.promptTokens,
-          completionTokens: response.completionTokens,
+          model,
+          promptTokens: 0,
+          completionTokens: 0,
           latencyMs,
-          status: "SCHEMA_ERROR",
-          errorMessage: `JSON parse failed: ${String(jsonErr)}`,
+          status: "FAILED",
+          errorMessage,
+          orchestrationPolicy: decision.policyVersion,
+          selectionReason: decision.reason,
         });
-        throw new Error(`Failed to parse AI output as JSON: ${cleanedContent}`);
+        throw operationalErr;
       }
+    }
 
-      const parseResult = schema.safeParse(parsedJson);
-      if (!parseResult.success) {
-        await telemetryService.recordUsage({
-          userId,
-          operation: `generateStructured:${task}`,
-          task: String(task).toLowerCase(),
-          provider: config.provider,
-          model: response.model,
-          promptTokens: response.promptTokens,
-          completionTokens: response.completionTokens,
-          latencyMs,
-          status: "SCHEMA_ERROR",
-          errorMessage: `Zod validation error: ${parseResult.error.message}`,
-        });
-        throw new Error(`AI output failed schema validation: ${parseResult.error.message}`);
-      }
+    // 3. Schema Parsing & Validation (NO FALLBACK on parse or schema errors)
+    const latencyMs = Date.now() - startTime;
+    let cleanedContent = responseContent.trim();
 
-      const usage = await telemetryService.recordUsage({
+    if (cleanedContent.startsWith("```json")) {
+      cleanedContent = cleanedContent.replace(/^```json\s*/, "").replace(/```$/, "").trim();
+    } else if (cleanedContent.startsWith("```")) {
+      cleanedContent = cleanedContent.replace(/^```\s*/, "").replace(/```$/, "").trim();
+    }
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(cleanedContent);
+    } catch (jsonErr) {
+      await telemetryService.recordUsage({
         userId,
         operation: `generateStructured:${task}`,
         task: String(task).toLowerCase(),
         provider: config.provider,
-        model: response.model,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
+        model: responseModel,
+        promptTokens: responsePromptTokens,
+        completionTokens: responseCompletionTokens,
         latencyMs,
-        status: "SUCCESS",
+        status: "SCHEMA_ERROR",
+        errorMessage: `JSON parse failed: ${String(jsonErr)}`,
+        orchestrationPolicy: decision.policyVersion,
+        selectionReason: decision.reason,
       });
-
-      return {
-        data: parseResult.data,
-        rawText: response.content,
-        usage,
-        model: response.model,
-        promptVersion,
-      };
-    } catch (err: unknown) {
-      const latencyMs = Date.now() - startTime;
-      const errorMessage = err instanceof Error ? err.message : String(err);
-
-      logger.error(`AI Gateway structured generation failed for task ${task}`, err, {
-        task,
-        model,
-        promptVersion,
-        latencyMs,
-        errorMessage,
-      });
-      throw err;
+      throw new Error(`Failed to parse AI output as JSON: ${cleanedContent}`);
     }
+
+    const parseResult = schema.safeParse(parsedJson);
+    if (!parseResult.success) {
+      await telemetryService.recordUsage({
+        userId,
+        operation: `generateStructured:${task}`,
+        task: String(task).toLowerCase(),
+        provider: config.provider,
+        model: responseModel,
+        promptTokens: responsePromptTokens,
+        completionTokens: responseCompletionTokens,
+        latencyMs,
+        status: "SCHEMA_ERROR",
+        errorMessage: `Zod validation error: ${parseResult.error.message}`,
+        orchestrationPolicy: decision.policyVersion,
+        selectionReason: decision.reason,
+      });
+      throw new Error(`AI output failed schema validation: ${parseResult.error.message}`);
+    }
+
+    const usage = await telemetryService.recordUsage({
+      userId,
+      operation: `generateStructured:${task}`,
+      task: String(task).toLowerCase(),
+      provider: config.provider,
+      model: responseModel,
+      promptTokens: responsePromptTokens,
+      completionTokens: responseCompletionTokens,
+      latencyMs,
+      status: "SUCCESS",
+      orchestrationPolicy: decision.policyVersion,
+      selectionReason: decision.reason,
+      fallbackUsed: wasFallbackUsed,
+      fallbackModel: wasFallbackUsed ? decision.fallbackModel : undefined,
+    });
+
+    return {
+      data: parseResult.data,
+      rawText: responseContent,
+      usage,
+      model: responseModel,
+      promptVersion,
+    };
   }
 }
 
