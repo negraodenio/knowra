@@ -486,6 +486,266 @@ export class SupabasePersistence {
       logger.warn("SupabasePersistence: Error persisting feynman session", { error: String(err) });
     }
   }
+
+  async persistAssessmentBlueprint(bp: {
+    id: string;
+    domainId: string;
+    competencyMapVersion: string;
+    assessmentType: string;
+    targetCompetencies: string[];
+    difficultyDistribution: { easy: number; medium: number; hard: number };
+    itemCount: number;
+    passingThreshold: number;
+    independenceRequirements: { disallowBaselineItemIds: boolean; maxSemanticSimilarity?: number };
+    version: string;
+    status: string;
+    createdAt?: string;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const { error } = await client.from("assessment_blueprints").upsert({
+        id: bp.id,
+        domain_id: bp.domainId,
+        competency_map_version: bp.competencyMapVersion,
+        assessment_type: bp.assessmentType,
+        target_competencies: bp.targetCompetencies,
+        difficulty_distribution: bp.difficultyDistribution,
+        item_count: bp.itemCount,
+        passing_threshold: bp.passingThreshold,
+        independence_requirements: bp.independenceRequirements,
+        version: bp.version,
+        status: bp.status,
+        created_at: bp.createdAt || new Date().toISOString(),
+      });
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist assessment blueprint", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting assessment blueprint", { error: String(err) });
+    }
+  }
+
+  async persistIndependentAssessmentItem(item: {
+    id: string;
+    domainId: string;
+    competencyId: string;
+    assessmentVersion: string;
+    itemVersion: number;
+    itemType: string;
+    difficulty: number;
+    prompt: string;
+    options?: string[];
+    correctAnswer: string;
+    explanation?: string;
+    formType: string;
+    provenance: string;
+    status: string;
+    metadata?: Record<string, unknown>;
+    createdAt?: string;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const { error } = await client.from("independent_assessment_items").upsert({
+        id: item.id,
+        domain_id: item.domainId,
+        competency_id: item.competencyId,
+        assessment_version: item.assessmentVersion,
+        item_version: item.itemVersion,
+        item_type: item.itemType,
+        difficulty: item.difficulty,
+        prompt: item.prompt,
+        options: item.options || null,
+        correct_answer: item.correctAnswer,
+        explanation: item.explanation || null,
+        form_type: item.formType,
+        provenance: item.provenance,
+        status: item.status,
+        metadata: item.metadata || {},
+        created_at: item.createdAt || new Date().toISOString(),
+      });
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist independent assessment item", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting independent assessment item", { error: String(err) });
+    }
+  }
+
+  async persistIndependentAssessmentSession(session: {
+    id: string;
+    userId: string;
+    learningGoalId: string;
+    domainId: string;
+    blueprintId: string;
+    assessmentType: string;
+    formVersion: string;
+    status: string;
+    overallScore?: number;
+    startedAt: string;
+    submittedAt?: string;
+    completedAt?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const { error } = await client.from("independent_assessment_sessions").upsert({
+        id: session.id,
+        user_id: session.userId,
+        learning_goal_id: session.learningGoalId,
+        domain_id: session.domainId,
+        blueprint_id: session.blueprintId,
+        assessment_type: session.assessmentType,
+        form_version: session.formVersion,
+        status: session.status,
+        overall_score: session.overallScore ?? null,
+        started_at: session.startedAt,
+        submitted_at: session.submittedAt || null,
+        completed_at: session.completedAt || null,
+        metadata: session.metadata || {},
+      });
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist assessment session", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting assessment session", { error: String(err) });
+    }
+  }
+
+  async persistIndependentAssessmentResponse(resp: {
+    id?: string;
+    sessionId: string;
+    userId: string;
+    itemId: string;
+    competencyId: string;
+    answer: string;
+    isCorrect: boolean;
+    score: number;
+    responseTimeMs?: number;
+    submittedAt?: string;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const payload: Record<string, unknown> = {
+        session_id: resp.sessionId,
+        user_id: resp.userId,
+        item_id: resp.itemId,
+        competency_id: resp.competencyId,
+        answer: resp.answer,
+        is_correct: resp.isCorrect,
+        score: resp.score,
+        response_time_ms: resp.responseTimeMs ?? null,
+        submitted_at: resp.submittedAt || new Date().toISOString(),
+      };
+      if (resp.id) {
+        payload.id = resp.id;
+      }
+      const { error } = await client.from("independent_assessment_responses").insert(payload);
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist assessment response", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting assessment response", { error: String(err) });
+    }
+  }
+
+  async persistLearningGain(gain: {
+    id?: string;
+    userId: string;
+    learningGoalId: string;
+    domainId: string;
+    baselineSessionId: string;
+    baselineScore: number;
+    finalSessionId: string;
+    finalScore: number;
+    learningGain: number;
+    relativeGain?: number;
+    competencyGains: unknown[];
+    calculatedAt?: string;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const payload: Record<string, unknown> = {
+        user_id: gain.userId,
+        learning_goal_id: gain.learningGoalId,
+        domain_id: gain.domainId,
+        baseline_session_id: gain.baselineSessionId,
+        baseline_score: gain.baselineScore,
+        final_session_id: gain.finalSessionId,
+        final_score: gain.finalScore,
+        learning_gain: gain.learningGain,
+        relative_gain: gain.relativeGain ?? null,
+        competency_gains: gain.competencyGains,
+        calculated_at: gain.calculatedAt || new Date().toISOString(),
+      };
+      if (gain.id) {
+        payload.id = gain.id;
+      }
+      const { error } = await client.from("learning_gains").insert(payload);
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist learning gain", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting learning gain", { error: String(err) });
+    }
+  }
+
+  async persistRetentionRecord(record: {
+    id?: string;
+    userId: string;
+    learningGoalId: string;
+    domainId: string;
+    finalSessionId: string;
+    finalScore: number;
+    retentionType: string;
+    retentionSessionId: string;
+    retentionScore: number;
+    retentionRatio: number;
+    gainRetained: number;
+    competencyRetention: unknown[];
+    daysSinceFinal: number;
+    measuredAt?: string;
+  }): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
+
+    try {
+      const payload: Record<string, unknown> = {
+        user_id: record.userId,
+        learning_goal_id: record.learningGoalId,
+        domain_id: record.domainId,
+        final_session_id: record.finalSessionId,
+        final_score: record.finalScore,
+        retention_type: record.retentionType,
+        retention_session_id: record.retentionSessionId,
+        retention_score: record.retentionScore,
+        retention_ratio: record.retentionRatio,
+        gain_retained: record.gainRetained,
+        competency_retention: record.competencyRetention,
+        days_since_final: record.daysSinceFinal,
+        measured_at: record.measuredAt || new Date().toISOString(),
+      };
+      if (record.id) {
+        payload.id = record.id;
+      }
+      const { error } = await client.from("retention_records").insert(payload);
+      if (error) {
+        logger.warn("SupabasePersistence: Failed to persist retention record", { error: error.message });
+      }
+    } catch (err) {
+      logger.warn("SupabasePersistence: Error persisting retention record", { error: String(err) });
+    }
+  }
 }
 
 export const supabasePersistence = new SupabasePersistence();
+

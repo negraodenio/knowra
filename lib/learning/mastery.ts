@@ -84,6 +84,7 @@ export function calculateRecencyWeight(
 function mapEvidenceTypeToKey(type: EvidenceType): keyof CategoryWeights | null {
   switch (type) {
     case "DIAGNOSTIC":
+    case "BASELINE_ASSESSMENT":
       return "diagnostic";
     case "EXERCISE":
     case "PRACTICE":
@@ -91,8 +92,11 @@ function mapEvidenceTypeToKey(type: EvidenceType): keyof CategoryWeights | null 
     case "FEYNMAN":
       return "feynman";
     case "REVIEW":
+    case "RETENTION_D7":
+    case "RETENTION_D30":
       return "review";
     case "APPLICATION":
+    case "FINAL_ASSESSMENT":
       return "application";
     default:
       return null;

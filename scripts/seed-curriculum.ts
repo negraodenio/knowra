@@ -1,7 +1,34 @@
+import fs from "fs";
+import path from "path";
 import { createClient } from "@supabase/supabase-js";
 import { CURATED_DOMAINS } from "../lib/learning/domains";
 import { ALL_CURATED_COMPETENCIES } from "../lib/learning/curriculum";
 import { ALL_DIAGNOSTIC_ITEMS } from "../lib/learning/diagnostic/curriculum";
+import { CURATED_ASSESSMENT_BLUEPRINTS } from "../lib/learning/assessment/curriculum/blueprints";
+import { CURATED_INDEPENDENT_ASSESSMENT_ITEMS } from "../lib/learning/assessment/curriculum/items";
+
+function loadEnv() {
+  for (const file of [".env", ".env.local"]) {
+    const p = path.resolve(process.cwd(), file);
+    if (fs.existsSync(p)) {
+      const lines = fs.readFileSync(p, "utf-8").split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx !== -1) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          let val = trimmed.slice(eqIdx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+loadEnv();
 
 async function main() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -89,7 +116,55 @@ async function main() {
   }
   console.log("✓ Diagnostic items seeded");
 
-  console.log("Database seeded successfully with all curated domains, competencies, and diagnostic items.");
+  // 5. Seed S7 Assessment Blueprints
+  for (const bp of CURATED_ASSESSMENT_BLUEPRINTS) {
+    const { error } = await supabase.from("assessment_blueprints").upsert({
+      id: bp.id,
+      domain_id: bp.domainId,
+      competency_map_version: bp.competencyMapVersion,
+      assessment_type: bp.assessmentType,
+      target_competencies: JSON.stringify(bp.targetCompetencies),
+      difficulty_distribution: JSON.stringify(bp.difficultyDistribution),
+      item_count: bp.itemCount,
+      passing_threshold: bp.passingThreshold,
+      independence_requirements: JSON.stringify(bp.independenceRequirements),
+      version: bp.version,
+      status: bp.status,
+    });
+    if (error) {
+      console.error(`Error inserting assessment blueprint ${bp.id}:`, error);
+      throw error;
+    }
+  }
+  console.log("✓ Assessment blueprints seeded");
+
+  // 6. Seed S7 Independent Assessment Items
+  for (const item of CURATED_INDEPENDENT_ASSESSMENT_ITEMS) {
+    const { error } = await supabase.from("independent_assessment_items").upsert({
+      id: item.id,
+      domain_id: item.domainId,
+      competency_id: item.competencyId,
+      assessment_version: item.assessmentVersion || item.version || "v1",
+      item_version: item.itemVersion || 1,
+      item_type: item.itemType,
+      difficulty: item.difficulty,
+      prompt: item.prompt,
+      options: item.options ? JSON.stringify(item.options) : null,
+      correct_answer: item.correctAnswer,
+      explanation: item.explanation || "",
+      form_type: item.formType,
+      provenance: item.provenance || "CURATED",
+      status: item.status || "ACTIVE",
+      metadata: JSON.stringify(item.metadata || {}),
+    });
+    if (error) {
+      console.error(`Error inserting independent assessment item ${item.id}:`, error);
+      throw error;
+    }
+  }
+  console.log("✓ Independent assessment items seeded");
+
+  console.log("Database seeded successfully with all curated domains, competencies, diagnostic items, blueprints, and independent assessment items.");
 }
 
 main().catch((err) => {

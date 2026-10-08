@@ -102,7 +102,10 @@ export const EvidenceTypeSchema = z.enum([
   "FEYNMAN",
   "REVIEW",
   "APPLICATION",
+  "BASELINE_ASSESSMENT",
   "FINAL_ASSESSMENT",
+  "RETENTION_D7",
+  "RETENTION_D30",
 ]);
 export type EvidenceType = z.infer<typeof EvidenceTypeSchema>;
 
