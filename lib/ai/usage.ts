@@ -24,6 +24,21 @@ export interface AIUsageRecord {
   fallbackUsed?: boolean;
   fallbackModel?: string;
   fallbackReason?: string;
+
+  // S7.8 AI Cache & pgvector Telemetry (§S7.8 Section 31, 32)
+  cacheEnabled?: boolean;
+  cacheType?: "EXACT" | "SEMANTIC";
+  cacheLayer?: "L1_EXACT" | "L2_SEMANTIC" | "NONE";
+  cacheHit?: boolean;
+  cacheKeyHash?: string;
+  semanticSimilarity?: number;
+  cacheLatencyMs?: number;
+  cacheLookupError?: string;
+  cacheWriteError?: string;
+  selectedModel?: string;
+  estimatedCostSaved?: number;
+  actualLlmCall?: boolean;
+  llmCallsAvoided?: number;
 }
 
 export interface ModelObservabilityStats {
@@ -37,6 +52,9 @@ export interface ModelObservabilityStats {
   estimatedCost: number;
   avgLatencyMs: number;
   fallbackCount: number;
+  cacheHitCount: number;
+  estimatedCostSaved: number;
+  llmCallsAvoided: number;
 }
 
 export class TelemetryService {
@@ -104,6 +122,9 @@ export class TelemetryService {
           estimatedCost: 0,
           avgLatencyMs: 0,
           fallbackCount: 0,
+          cacheHitCount: 0,
+          estimatedCostSaved: 0,
+          llmCallsAvoided: 0,
         };
       }
 
@@ -114,6 +135,11 @@ export class TelemetryService {
       else if (record.status === "SCHEMA_ERROR") s.schemaErrorCount += 1;
 
       if (record.fallbackUsed) s.fallbackCount += 1;
+      if (record.cacheHit) {
+        s.cacheHitCount += 1;
+        s.llmCallsAvoided += record.llmCallsAvoided || 1;
+        s.estimatedCostSaved = Number(((s.estimatedCostSaved || 0) + (record.estimatedCostSaved || 0)).toFixed(6));
+      }
 
       s.totalTokens += record.totalTokens;
       s.estimatedCost = Number((s.estimatedCost + record.estimatedCost).toFixed(6));

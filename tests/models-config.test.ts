@@ -14,6 +14,7 @@ describe("Model Strategy & Task-Specific Model Registry (§28, §29)", () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    process.env.ENABLE_AI_CACHE = "false";
     delete process.env.EDUIA_PRIMARY_MODEL;
     delete process.env.DEFAULT_MODEL;
     vi.restoreAllMocks();

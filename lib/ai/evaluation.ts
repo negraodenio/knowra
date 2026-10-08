@@ -1379,6 +1379,7 @@ export async function executeEduiaBenchmarkTask(
         promptVersion: `BENCHMARK_${BENCHMARK_VERSION}`,
         maxTokens: taskDef.maxTokens,
         temperature: 0.1, // Deterministic setting for benchmark repeatability
+        bypassCache: true,
       });
 
       const latencyMs = Date.now() - startTime;
@@ -1416,6 +1417,7 @@ export async function executeEduiaBenchmarkTask(
         promptVersion: `BENCHMARK_${BENCHMARK_VERSION}`,
         maxTokens: taskDef.maxTokens,
         temperature: 0.1,
+        bypassCache: true,
       });
 
       const latencyMs = Date.now() - startTime;
@@ -1492,6 +1494,7 @@ export async function benchmarkModel(
         schema: context.schema,
         promptVersion: "BENCHMARK_V1",
         maxTokens: context.maxTokens,
+        bypassCache: true,
       });
 
       const latencyMs = Date.now() - startTime;
@@ -1535,6 +1538,7 @@ export async function benchmarkModel(
         userPrompt: context.testPrompt,
         promptVersion: "BENCHMARK_V1",
         maxTokens: context.maxTokens,
+        bypassCache: true,
       });
 
       const latencyMs = Date.now() - startTime;

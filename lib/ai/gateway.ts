@@ -5,6 +5,7 @@ import { telemetryService, AIUsageRecord } from "./usage";
 import { logger } from "@/lib/observability/logger";
 import { getAIConfig } from "./config";
 import { aiModelOrchestrator, RequirementLevel } from "./orchestrator";
+import { aiCacheService } from "./cache";
 
 export type GatewayTask = ModelTask | AITask;
 
@@ -17,6 +18,7 @@ export interface GenerateTextOptions {
   temperature?: number;
   maxTokens?: number;
   modelOverride?: string;
+  bypassCache?: boolean;
 
   // S7.5 Context Parameters
   domain?: string;
@@ -85,6 +87,57 @@ export class AIGateway {
     });
     const model = modelOverride || decision.model;
 
+    // 2. AI Cache Lookup (L1 Exact -> L2 Semantic) (§S7.8 Section 7)
+    if (!options.bypassCache) {
+      const cacheResult = await aiCacheService.lookup<string>({
+        task: String(task).toLowerCase(),
+        model,
+        promptVersion,
+        policyVersion: decision.policyVersion,
+        input: userPrompt,
+        domainId: options.domain,
+        userId,
+        scopeOverride: options.userId ? undefined : "SHARED",
+      });
+
+      if (cacheResult.hit && cacheResult.data) {
+        const usage = await telemetryService.recordUsage({
+          userId,
+          operation: `generateText:${task}`,
+          task: String(task).toLowerCase(),
+          provider: config.provider,
+          model: cacheResult.cachedModel || model,
+          selectedModel: model,
+          primaryModel: decision.primaryModel,
+          promptTokens: 0,
+          completionTokens: 0,
+          latencyMs: cacheResult.latencyMs,
+          status: "SUCCESS",
+          orchestrationPolicy: decision.policyVersion,
+          selectionReason: decision.reason,
+          fallbackUsed: false,
+          cacheEnabled: true,
+          cacheType: cacheResult.layer === "L2_SEMANTIC" ? "SEMANTIC" : "EXACT",
+          cacheLayer: cacheResult.layer,
+          cacheHit: true,
+          cacheKeyHash: cacheResult.cacheKeyHash,
+          semanticSimilarity: cacheResult.similarity,
+          cacheLatencyMs: cacheResult.latencyMs,
+          estimatedCostSaved: cacheResult.estimatedCostSaved,
+          actualLlmCall: false,
+          llmCallsAvoided: 1,
+        });
+
+        return {
+          data: cacheResult.data,
+          rawText: cacheResult.rawText || cacheResult.data,
+          usage,
+          model: cacheResult.cachedModel || model,
+          promptVersion,
+        };
+      }
+    }
+
     const messages: OpenRouterMessage[] = [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -98,6 +151,24 @@ export class AIGateway {
         maxTokens,
       });
 
+      // Asynchronously store validated response in cache (§S7.8 Section 7, 26)
+      if (!options.bypassCache) {
+        aiCacheService.store({
+          task: String(task).toLowerCase(),
+          model: response.model,
+          promptVersion,
+          policyVersion: decision.policyVersion,
+          input: userPrompt,
+          domainId: options.domain,
+          userId,
+          scopeOverride: options.userId ? undefined : "SHARED",
+          responsePayload: response.content,
+          rawText: response.content,
+          promptTokens: response.promptTokens,
+          completionTokens: response.completionTokens,
+        }).catch((err) => logger.warn("AI Cache store async failure", { error: String(err) }));
+      }
+
       const latencyMs = Date.now() - startTime;
       const usage = await telemetryService.recordUsage({
         userId,
@@ -105,6 +176,7 @@ export class AIGateway {
         task: String(task).toLowerCase(),
         provider: config.provider,
         model: response.model,
+        selectedModel: model,
         primaryModel: decision.primaryModel,
         promptTokens: response.promptTokens,
         completionTokens: response.completionTokens,
@@ -113,6 +185,10 @@ export class AIGateway {
         orchestrationPolicy: decision.policyVersion,
         selectionReason: decision.reason,
         fallbackUsed: false,
+        cacheEnabled: true,
+        cacheLayer: "NONE",
+        cacheHit: false,
+        actualLlmCall: true,
       });
 
       return {
@@ -218,6 +294,60 @@ export class AIGateway {
       costSensitivity: options.costSensitivity,
     });
     const model = modelOverride || decision.model;
+
+    // 2. AI Cache Lookup (L1 Exact -> L2 Semantic) (§S7.8 Section 7)
+    if (!options.bypassCache) {
+      const cacheResult = await aiCacheService.lookup<z.infer<T>>({
+        task: String(task).toLowerCase(),
+        model,
+        promptVersion,
+        policyVersion: decision.policyVersion,
+        input: userPrompt,
+        domainId: options.domain,
+        userId,
+        scopeOverride: options.userId ? undefined : "SHARED",
+      });
+
+      if (cacheResult.hit && cacheResult.data) {
+        const validatedCache = schema.safeParse(cacheResult.data);
+        if (validatedCache.success) {
+          const usage = await telemetryService.recordUsage({
+            userId,
+            operation: `generateStructured:${task}`,
+            task: String(task).toLowerCase(),
+            provider: config.provider,
+            model: cacheResult.cachedModel || model,
+            selectedModel: model,
+            primaryModel: decision.primaryModel,
+            promptTokens: 0,
+            completionTokens: 0,
+            latencyMs: cacheResult.latencyMs,
+            status: "SUCCESS",
+            orchestrationPolicy: decision.policyVersion,
+            selectionReason: decision.reason,
+            fallbackUsed: false,
+            cacheEnabled: true,
+            cacheType: cacheResult.layer === "L2_SEMANTIC" ? "SEMANTIC" : "EXACT",
+            cacheLayer: cacheResult.layer,
+            cacheHit: true,
+            cacheKeyHash: cacheResult.cacheKeyHash,
+            semanticSimilarity: cacheResult.similarity,
+            cacheLatencyMs: cacheResult.latencyMs,
+            estimatedCostSaved: cacheResult.estimatedCostSaved,
+            actualLlmCall: false,
+            llmCallsAvoided: 1,
+          });
+
+          return {
+            data: validatedCache.data,
+            rawText: cacheResult.rawText || JSON.stringify(cacheResult.data),
+            usage,
+            model: cacheResult.cachedModel || model,
+            promptVersion,
+          };
+        }
+      }
+    }
 
     const formattedSystemPrompt = `${systemPrompt}\n\nIMPORTANT: You MUST respond ONLY with valid JSON matching the requested schema. Do not enclose in markdown code blocks if possible.`;
 
@@ -364,12 +494,31 @@ export class AIGateway {
       throw new Error(`AI output failed schema validation: ${parseResult.error.message}`);
     }
 
+    // Asynchronously store validated response in cache (§S7.8 Section 7, 26)
+    if (!options.bypassCache) {
+      aiCacheService.store({
+        task: String(task).toLowerCase(),
+        model: responseModel,
+        promptVersion,
+        policyVersion: decision.policyVersion,
+        input: userPrompt,
+        domainId: options.domain,
+        userId,
+        scopeOverride: options.userId ? undefined : "SHARED",
+        responsePayload: parseResult.data,
+        rawText: responseContent,
+        promptTokens: responsePromptTokens,
+        completionTokens: responseCompletionTokens,
+      }).catch((err) => logger.warn("AI Cache structured store async failure", { error: String(err) }));
+    }
+
     const usage = await telemetryService.recordUsage({
       userId,
       operation: `generateStructured:${task}`,
       task: String(task).toLowerCase(),
       provider: config.provider,
       model: responseModel,
+      selectedModel: model,
       primaryModel: decision.primaryModel,
       promptTokens: responsePromptTokens,
       completionTokens: responseCompletionTokens,
@@ -379,6 +528,10 @@ export class AIGateway {
       selectionReason: decision.reason,
       fallbackUsed: wasFallbackUsed,
       fallbackModel: wasFallbackUsed ? decision.fallbackModel : undefined,
+      cacheEnabled: true,
+      cacheLayer: "NONE",
+      cacheHit: false,
+      actualLlmCall: true,
     });
 
     return {

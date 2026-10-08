@@ -12,6 +12,7 @@ describe("S7.5 — AI Model Orchestrator & Selection Layer", () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    process.env.ENABLE_AI_CACHE = "false";
     telemetryService.clearUsageRecords();
     vi.restoreAllMocks();
   });
