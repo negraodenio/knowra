@@ -414,4 +414,13 @@ export class RecommendationService {
   }
 }
 
-export const recommendationService = new RecommendationService();
+const globalForRec = globalThis as unknown as {
+  recommendationService?: RecommendationService;
+};
+
+export const recommendationService =
+  globalForRec.recommendationService || new RecommendationService();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForRec.recommendationService = recommendationService;
+}

@@ -413,4 +413,13 @@ export class AssessmentService {
   }
 }
 
-export const assessmentService = new AssessmentService();
+const globalForAssessment = globalThis as unknown as {
+  assessmentService?: AssessmentService;
+};
+
+export const assessmentService =
+  globalForAssessment.assessmentService || new AssessmentService();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForAssessment.assessmentService = assessmentService;
+}

@@ -10,7 +10,8 @@ import {
 } from "../diagnostic/types";
 import { evaluateDiagnosticItem, aggregateDiagnosticReport } from "../diagnostic/evaluator";
 import { EvidenceRecord, getMasteryState, MasteryState } from "../types";
-import { supabasePersistence } from "@/lib/db/supabase-persistence";
+import { supabasePersistence, isLiveDatabaseConfigured } from "@/lib/db/supabase-persistence";
+import { createAdminClient } from "@/lib/db/supabase-admin";
 
 export class UnauthorizedAccessError extends Error {
   constructor(message = "Unauthorized: Access denied to requested learner resource.") {
@@ -147,7 +148,34 @@ export class LearningStateService {
    * Retrieves a goal ensuring strict user ownership (§36)
    */
   async getGoal(userId: string, goalId: string): Promise<LearningGoalEntity> {
-    const goal = this.goals.get(goalId);
+    let goal = this.goals.get(goalId);
+    if (!goal && isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data, error } = await client
+          .from("learning_goals")
+          .select("*")
+          .eq("id", goalId)
+          .maybeSingle();
+
+        if (data && !error) {
+          goal = {
+            id: data.id,
+            userId: data.user_id,
+            domainId: data.domain_id,
+            title: data.raw_objective || data.target_outcome || "Goal",
+            normalizedObjective: typeof data.normalized_objective === "string" ? data.normalized_objective : JSON.stringify(data.normalized_objective),
+            targetOutcome: data.target_outcome,
+            status: data.status,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+          };
+          this.goals.set(goal.id, goal);
+        }
+      } catch {
+        // Fallback to in-memory check
+      }
+    }
     if (!goal) {
       throw new Error(`Goal with ID '${goalId}' not found.`);
     }
@@ -649,6 +677,67 @@ export class LearningStateService {
   ): Promise<CurrentLearningStateView> {
     const goal = await this.getGoal(userId, goalId); // Ownership check
 
+    if (isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const [sessionRes, compRes] = await Promise.all([
+          client
+            .from("diagnostic_sessions")
+            .select("*")
+            .eq("learning_goal_id", goalId)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false }),
+          client
+            .from("competency_states")
+            .select("*")
+            .eq("learning_goal_id", goalId)
+            .eq("user_id", userId),
+        ]);
+
+        if (sessionRes.data) {
+          for (const row of sessionRes.data) {
+            if (!this.sessions.has(row.id)) {
+              this.sessions.set(row.id, {
+                id: row.id,
+                userId: row.user_id,
+                learningGoalId: row.learning_goal_id,
+                domainId: row.domain_id,
+                mapVersion: row.map_version,
+                status: row.status,
+                overallBaselineScore: row.overall_baseline_score ?? 0,
+                startedAt: row.started_at || row.created_at,
+                completedAt: row.completed_at,
+                itemIds: [],
+              });
+            }
+          }
+        }
+
+        if (compRes.data) {
+          for (const row of compRes.data) {
+            const key = `${userId}:${goalId}:${row.competency_id}`;
+            if (!this.competencyStates.has(key)) {
+              this.competencyStates.set(key, {
+                id: row.id,
+                userId: row.user_id,
+                learningGoalId: row.learning_goal_id,
+                competencyId: row.competency_id,
+                baselineScore: row.baseline_score ?? 0,
+                currentScore: row.current_score ?? 0,
+                masteryState: row.mastery_state || "UNASSESSED",
+                confidenceScore: row.confidence_score ?? 0,
+                evidenceCount: row.evidence_count ?? 0,
+                lastEvidenceAt: row.last_evidence_at || row.updated_at,
+                updatedAt: row.updated_at,
+              });
+            }
+          }
+        }
+      } catch {
+        // Fallback to in-memory
+      }
+    }
+
     const session = Array.from(this.sessions.values()).find(
       (s) => s.userId === userId && s.learningGoalId === goalId && s.status === "COMPLETED"
     );
@@ -681,6 +770,37 @@ export class LearningStateService {
   }
 
   async getUserGoals(userId: string): Promise<LearningGoalEntity[]> {
+    if (isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data, error } = await client
+          .from("learning_goals")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+
+        if (data && !error) {
+          for (const row of data) {
+            if (!this.goals.has(row.id)) {
+              this.goals.set(row.id, {
+                id: row.id,
+                userId: row.user_id,
+                domainId: row.domain_id,
+                title: row.raw_objective || row.target_outcome || "Goal",
+                normalizedObjective: typeof row.normalized_objective === "string" ? row.normalized_objective : JSON.stringify(row.normalized_objective),
+                targetOutcome: row.target_outcome,
+                status: row.status,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+              });
+            }
+          }
+        }
+      } catch {
+        // Fallback to in-memory
+      }
+    }
+
     const userGoals: LearningGoalEntity[] = [];
     for (const goal of this.goals.values()) {
       if (goal.userId === userId) {
@@ -793,4 +913,13 @@ export class LearningStateService {
   }
 }
 
-export const learningStateService = new LearningStateService();
+const globalForState = globalThis as unknown as {
+  learningStateService?: LearningStateService;
+};
+
+export const learningStateService =
+  globalForState.learningStateService || new LearningStateService();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForState.learningStateService = learningStateService;
+}
