@@ -2,6 +2,10 @@ import { randomUUID as uuidv4 } from "crypto";
 import { logger } from "./logger";
 
 export type ProductEventType =
+  | "landing_viewed"
+  | "landing_how_it_works_clicked"
+  | "landing_cta_clicked"
+  | "signup_started"
   | "goal_created"
   | "goal_updated"
   | "diagnostic_started"

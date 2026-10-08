@@ -2,8 +2,19 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EDUIA — Universal Adaptive Learning Platform",
-  description: "Intelligent competency-based adaptive learning engine powered by structured evidence.",
+  title: "Knowra — Adaptive Learning That Knows What You Know",
+  description: "Knowra understands what you already know, finds your learning gaps, and adapts what you should learn next.",
+  openGraph: {
+    title: "Knowra — Adaptive Learning That Knows What You Know",
+    description: "Knowra understands what you already know, finds your learning gaps, and adapts what you should learn next.",
+    type: "website",
+    siteName: "Knowra",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Knowra — Adaptive Learning That Knows What You Know",
+    description: "Knowra understands what you already know, finds your learning gaps, and adapts what you should learn next.",
+  },
 };
 
 export default function RootLayout({

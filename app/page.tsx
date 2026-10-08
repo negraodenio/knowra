@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { LearnerNav } from "./components/learner-nav";
 import { useLearner } from "./lib/use-learner";
 import { GapAlert, GapData } from "./components/ui/gap-alert";
+import { LandingPage } from "./components/landing-page";
+import { AuthModal } from "./components/auth-modal";
 
 interface RecommendationData {
   id: string;
@@ -43,7 +45,7 @@ interface PlanItem {
 
 export default function LearnerDashboardPage() {
   const router = useRouter();
-  const { userId, activeGoal, refreshGoals, loading: learnerLoading } = useLearner();
+  const { userId, activeGoal, refreshGoals, loading: learnerLoading, isAuthenticated } = useLearner();
 
   // Onboarding Goal Form State
   const [rawObjective, setRawObjective] = useState("I want to become proficient in Python.");
@@ -51,6 +53,10 @@ export default function LearnerDashboardPage() {
   const [selfReportedLevel, setSelfReportedLevel] = useState("Beginner");
   const [submittingGoal, setSubmittingGoal] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
+
+  // Auth modal state for landing conversions
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"SIGN_IN" | "SIGN_UP">("SIGN_UP");
 
   // Active Goal Dashboard State
   const [recommendation, setRecommendation] = useState<RecommendationData | null>(null);
@@ -61,6 +67,7 @@ export default function LearnerDashboardPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async (goalId: string) => {
+    if (!userId) return;
     setLoadingDashboard(true);
     setActionMessage(null);
     try {
@@ -115,6 +122,7 @@ export default function LearnerDashboardPage() {
   // Handle Goal Creation
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) return;
     setSubmittingGoal(true);
     setGoalError(null);
     try {
@@ -149,7 +157,7 @@ export default function LearnerDashboardPage() {
 
   // Handle Recommendation Accept
   const handleAcceptRecommendation = async () => {
-    if (!recommendation) return;
+    if (!recommendation || !userId) return;
     try {
       const res = await fetch(`/api/learning/recommendation/${recommendation.id}/accept`, {
         method: "POST",
@@ -168,7 +176,7 @@ export default function LearnerDashboardPage() {
 
   // Handle Recommendation Skip
   const handleSkipRecommendation = async () => {
-    if (!recommendation) return;
+    if (!recommendation || !userId) return;
     try {
       const res = await fetch(`/api/learning/recommendation/${recommendation.id}/skip`, {
         method: "POST",
@@ -214,17 +222,45 @@ export default function LearnerDashboardPage() {
       : 0;
   const totalEvidenceCount = comps.reduce((acc, c) => acc + c.evidenceCount, 0);
 
+  // Loading state
+  if (learnerLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-slate-400">Connecting to Learning Engine...</p>
+      </div>
+    );
+  }
+
+  // CASE A: Anonymous visitor -> PUBLIC LANDING PAGE (§3, §4, §31)
+  if (!isAuthenticated || !userId) {
+    return (
+      <>
+        <LandingPage
+          onStartLearning={() => {
+            setAuthModalMode("SIGN_UP");
+            setShowAuthModal(true);
+          }}
+          onSignIn={() => {
+            setAuthModalMode("SIGN_IN");
+            setShowAuthModal(true);
+          }}
+        />
+        <AuthModal
+          isOpen={showAuthModal}
+          initialMode={authModalMode}
+          onClose={() => setShowAuthModal(false)}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <LearnerNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {learnerLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3">
-            <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm">Connecting to Learning Engine...</p>
-          </div>
-        ) : !activeGoal ? (
+        {!activeGoal ? (
           /* ==========================================================
              ONBOARDING / GOAL ENTRY SCREEN (§7.1, §7.2, §8)
              ========================================================== */

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 
 const USER_ID_KEY = "knowra_learner_user_id";
 const ACTIVE_GOAL_KEY = "knowra_learner_active_goal_id";
-const DEFAULT_USER_ID = "test-learner-1";
 
 export interface LearnerGoal {
   id: string;
@@ -18,7 +17,7 @@ export interface LearnerGoal {
 }
 
 export function useLearner() {
-  const [userId, setUserIdState] = useState<string>(DEFAULT_USER_ID);
+  const [userId, setUserIdState] = useState<string | null>(null);
   const [activeGoalId, setActiveGoalIdState] = useState<string | null>(null);
   const [goals, setGoals] = useState<LearnerGoal[]>([]);
   const [activeGoal, setActiveGoal] = useState<LearnerGoal | null>(null);
@@ -31,7 +30,8 @@ export function useLearner() {
       if (storedUser) {
         setUserIdState(storedUser);
       } else {
-        localStorage.setItem(USER_ID_KEY, DEFAULT_USER_ID);
+        setUserIdState(null);
+        setLoading(false);
       }
 
       const storedGoal = localStorage.getItem(ACTIVE_GOAL_KEY);
@@ -51,7 +51,20 @@ export function useLearner() {
     }
   }, []);
 
+  const signOut = useCallback(() => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(USER_ID_KEY);
+      localStorage.removeItem(ACTIVE_GOAL_KEY);
+      window.dispatchEvent(new Event("knowra_user_changed"));
+    }
+    setUserIdState(null);
+    setActiveGoalIdState(null);
+    setActiveGoal(null);
+    setGoals([]);
+  }, []);
+
   const selectGoal = useCallback(async (goalId: string) => {
+    if (!userId) return;
     setActiveGoalIdState(goalId);
     if (typeof window !== "undefined") {
       localStorage.setItem(ACTIVE_GOAL_KEY, goalId);
@@ -69,6 +82,13 @@ export function useLearner() {
   }, [userId]);
 
   const refreshGoals = useCallback(async () => {
+    if (!userId) {
+      setGoals([]);
+      setActiveGoal(null);
+      setActiveGoalIdState(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/goals", {
@@ -122,13 +142,15 @@ export function useLearner() {
   }, [userId, refreshGoals]);
 
   return {
-    userId,
+    userId: userId || "",
     setUserId,
+    signOut,
     activeGoalId,
     activeGoal,
     goals,
     selectGoal,
     refreshGoals,
     loading,
+    isAuthenticated: Boolean(userId),
   };
 }
