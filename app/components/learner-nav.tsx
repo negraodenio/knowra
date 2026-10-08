@@ -12,7 +12,7 @@ export function LearnerNav() {
   const [showGoalMenu, setShowGoalMenu] = useState(false);
 
   const navLinks = [
-    { href: "/", label: "Today", icon: "⚡" },
+    { href: "/", label: "Home", icon: "✨" },
     { href: "/map", label: "Learning Map", icon: "🗺️" },
     { href: "/activity", label: "Practice", icon: "🎯" },
     { href: "/progress", label: "Progress & Gain", icon: "📈" },
@@ -33,7 +33,7 @@ export function LearnerNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#07090e]/85 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Thesis */}

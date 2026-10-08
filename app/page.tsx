@@ -8,6 +8,7 @@ import { useLearner } from "./lib/use-learner";
 import { GapAlert, GapData } from "./components/ui/gap-alert";
 import { LandingPage } from "./components/landing-page";
 import { AuthModal } from "./components/auth-modal";
+import { detectDomainFromObjective } from "@/lib/learning/domain-detection";
 
 interface RecommendationData {
   id: string;
@@ -43,18 +44,18 @@ interface PlanItem {
   unblocked: boolean;
 }
 
+
 export default function LearnerDashboardPage() {
   const router = useRouter();
   const { userId, activeGoal, refreshGoals, loading: learnerLoading, isAuthenticated } = useLearner();
 
-  // Onboarding Goal Form State
-  const [rawObjective, setRawObjective] = useState("I want to become proficient in Python.");
-  const [selectedDomain, setSelectedDomain] = useState("python-junior");
-  const [selfReportedLevel, setSelfReportedLevel] = useState("Beginner");
+  // Free-text learning intention
+  const [rawObjective, setRawObjective] = useState("");
   const [submittingGoal, setSubmittingGoal] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
+  const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
 
-  // Auth modal state for landing conversions
+  // Auth modal state for landing page conversions
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"SIGN_IN" | "SIGN_UP">("SIGN_UP");
 
@@ -119,12 +120,26 @@ export default function LearnerDashboardPage() {
     }
   }, [activeGoal, loadDashboardData]);
 
-  // Handle Goal Creation
-  const handleCreateGoal = async (e: React.FormEvent) => {
+  // Handle Free-Text Learning Goal Creation
+  const handleFreeTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    setSubmittingGoal(true);
+
+    const trimmedObjective = rawObjective.trim();
+    if (!trimmedObjective) return;
+
     setGoalError(null);
+    setUnsupportedNotice(null);
+
+    const detected = detectDomainFromObjective(trimmedObjective);
+    if (!detected) {
+      setUnsupportedNotice(
+        "Knowra can start with Python, Mathematics or Excel today. More learning paths are coming. Please choose one of our curated paths below or refine your learning goal."
+      );
+      return;
+    }
+
+    setSubmittingGoal(true);
     try {
       const res = await fetch("/api/goals", {
         method: "POST",
@@ -133,9 +148,9 @@ export default function LearnerDashboardPage() {
           "x-user-id": userId,
         },
         body: JSON.stringify({
-          rawObjective,
-          selectedDomainId: selectedDomain,
-          selfReportedLevel,
+          rawObjective: trimmedObjective,
+          selectedDomainId: detected.id,
+          selfReportedLevel: "Beginner",
         }),
       });
 
@@ -146,7 +161,6 @@ export default function LearnerDashboardPage() {
 
       const { goal } = await res.json();
       await refreshGoals();
-      // Prompt user to take diagnostic
       router.push(`/diagnostic?goalId=${goal.id}`);
     } catch (err: unknown) {
       setGoalError(err instanceof Error ? err.message : String(err));
@@ -155,41 +169,41 @@ export default function LearnerDashboardPage() {
     }
   };
 
-  // Handle Recommendation Accept
-  const handleAcceptRecommendation = async () => {
-    if (!recommendation || !userId) return;
-    try {
-      const res = await fetch(`/api/learning/recommendation/${recommendation.id}/accept`, {
-        method: "POST",
-        headers: { "x-user-id": userId },
-      });
-      if (res.ok) {
-        setActionMessage("Action accepted. Let's begin the exercise!");
-        setTimeout(() => {
-          router.push(`/activity?goalId=${activeGoal?.id}&competencyId=${recommendation.competencyId}&action=${recommendation.action}`);
-        }, 600);
-      }
-    } catch {
-      // Ignored
-    }
-  };
+  // Handle Curated Path Card Selection
+  const handleSelectCuratedPath = async (domainId: string, defaultObjective: string) => {
+    if (!userId || submittingGoal) return;
+    setSubmittingGoal(true);
+    setGoalError(null);
+    setUnsupportedNotice(null);
 
-  // Handle Recommendation Skip
-  const handleSkipRecommendation = async () => {
-    if (!recommendation || !userId) return;
+    const objective = rawObjective.trim() || defaultObjective;
+
     try {
-      const res = await fetch(`/api/learning/recommendation/${recommendation.id}/skip`, {
+      const res = await fetch("/api/goals", {
         method: "POST",
-        headers: { "x-user-id": userId },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({
+          rawObjective: objective,
+          selectedDomainId: domainId,
+          selfReportedLevel: "Beginner",
+        }),
       });
-      if (res.ok) {
-        setActionMessage("Recommendation skipped. Fetching alternative action...");
-        if (activeGoal) {
-          loadDashboardData(activeGoal.id);
-        }
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create curated goal");
       }
-    } catch {
-      // Ignored
+
+      const { goal } = await res.json();
+      await refreshGoals();
+      router.push(`/diagnostic?goalId=${goal.id}`);
+    } catch (err: unknown) {
+      setGoalError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmittingGoal(false);
     }
   };
 
@@ -217,17 +231,14 @@ export default function LearnerDashboardPage() {
   // Calculate Overall Demonstrated Mastery
   const comps = learningState?.competencies || [];
   const avgMastery =
-    comps.length > 0
-      ? comps.reduce((acc, c) => acc + c.masteryScore, 0) / comps.length
-      : 0;
-  const totalEvidenceCount = comps.reduce((acc, c) => acc + c.evidenceCount, 0);
+    comps.length > 0 ? comps.reduce((acc, c) => acc + c.masteryScore, 0) / comps.length : 0;
 
-  // Loading state (only for authenticated session setup)
+  // Loading state (only for initial session verification)
   if (learnerLoading && userId) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-slate-400">Connecting to Learning Engine...</p>
+      <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col items-center justify-center space-y-3 font-sans selection:bg-white/20 selection:text-white">
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <p className="text-xs text-slate-400 font-mono tracking-wider uppercase">Loading Knowra...</p>
       </div>
     );
   }
@@ -255,397 +266,355 @@ export default function LearnerDashboardPage() {
     );
   }
 
+  // CASE B: Authenticated Learner -> RESTORED LEARNING HOME (§3, §4, §5)
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-white/20 selection:text-white antialiased">
       <LearnerNav />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!activeGoal ? (
-          /* ==========================================================
-             ONBOARDING / GOAL ENTRY SCREEN (§7.1, §7.2, §8)
-             ========================================================== */
-          <div className="max-w-3xl mx-auto py-8">
-            <div className="text-center space-y-3 mb-10">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                ✨ Adaptive Learning Journey
-              </span>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-                Tell Knowra what you want to learn.
-              </h1>
-              <p className="text-slate-400 text-sm max-w-xl mx-auto leading-relaxed">
-                Knowra maps your competency graph, identifies your exact starting point with a diagnostic, and recommends your Next Best Action.
-              </p>
-            </div>
-
-            <form
-              onSubmit={handleCreateGoal}
-              className="rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6"
-            >
-              {goalError && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
-                  {goalError}
-                </div>
-              )}
-
-              {/* Natural Objective Input */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  What is your learning goal?
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={rawObjective}
-                  onChange={(e) => setRawObjective(e.target.value)}
-                  placeholder="e.g. I want to become proficient in Python programming"
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
-                />
-                <p className="text-[11px] text-slate-500">
-                  State your objective naturally — Knowra normalizes your intent into a competency path.
-                </p>
-              </div>
-
-              {/* Curated Domain Selection */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Select Curated Learning Domain
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    {
-                      id: "python-junior",
-                      name: "Python Junior",
-                      desc: "Variables, control flow, functions & data structures",
-                      badge: "Curated Spine",
-                    },
-                    {
-                      id: "math-exams",
-                      name: "Mathematics",
-                      desc: "Algebra, linear systems, functions & graphing",
-                      badge: "Curated Spine",
-                    },
-                    {
-                      id: "excel-pro",
-                      name: "Excel Pro",
-                      desc: "Formulas, XLOOKUP, conditional math & aggregation",
-                      badge: "Curated Spine",
-                    },
-                  ].map((dom) => (
-                    <button
-                      type="button"
-                      key={dom.id}
-                      onClick={() => setSelectedDomain(dom.id)}
-                      className={`text-left p-4 rounded-xl border transition-all ${
-                        selectedDomain === dom.id
-                          ? "border-sky-500 bg-sky-500/10 ring-1 ring-sky-500"
-                          : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-semibold text-sm text-white">{dom.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                          {dom.badge}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 line-clamp-2">{dom.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Self-Reported Experience Level */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Self-Reported Experience
-                </label>
-                <div className="flex gap-3">
-                  {["Beginner", "Intermediate", "Advanced"].map((lvl) => (
-                    <button
-                      type="button"
-                      key={lvl}
-                      onClick={() => setSelfReportedLevel(lvl)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                        selfReportedLevel === lvl
-                          ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                          : "border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-300"
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingGoal}
-                className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-lg shadow-sky-500/25 transition-all disabled:opacity-50"
-              >
-                {submittingGoal ? "Setting Up Learning Map..." : "Begin Adaptive Journey →"}
-              </button>
-            </form>
-          </div>
-        ) : (
-          /* ==========================================================
-             ACTIVE LEARNER DASHBOARD (§11, §12)
-             ========================================================== */
-          <div className="space-y-8">
-            {/* Header Greeting & Goal Context */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-sky-400 uppercase tracking-wider">
-                    Adaptive Workspace
-                  </span>
-                  <span className="text-slate-600">•</span>
-                  <span className="text-xs text-slate-400">Learner ID: {userId}</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                  {activeGoal.title}
-                </h1>
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-12">
+        {/* ==========================================================
+            RESUME ACTIVE JOURNEY BANNER (When learner has an active goal)
+            ========================================================== */}
+        {activeGoal && (
+          <section className="rounded-2xl border border-white/[0.08] bg-[#0c1018] p-5 sm:p-6 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-mono tracking-[0.2em] text-slate-400 uppercase">
+                  Active Learning Journey
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="text-xs text-slate-300 font-medium">{activeGoal.title}</span>
               </div>
 
               <div className="flex items-center gap-2">
-                {!learningState?.diagnosticCompleted && (
+                {!learningState?.diagnosticCompleted ? (
                   <Link
                     href={`/diagnostic?goalId=${activeGoal.id}`}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors"
                   >
-                    ⚠️ Take Starting Diagnostic
+                    ⚠️ Diagnostic Pending
                   </Link>
-                )}
-                <Link
-                  href="/map"
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/60 transition-colors"
-                >
-                  🗺️ View Learning Map
-                </Link>
-              </div>
-            </div>
-
-            {/* Quick Stats Overview (§17) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Baseline Diagnostic
-                </div>
-                <div className="mt-1 text-2xl font-bold font-mono text-white">
-                  {learningState?.diagnosticCompleted
-                    ? `${learningState.overallBaselineScore.toFixed(0)}%`
-                    : "Not Taken"}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Immutable starting point</div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Current Mastery
-                </div>
-                <div className="mt-1 text-2xl font-bold font-mono text-emerald-400">
-                  {avgMastery > 0 ? `${avgMastery.toFixed(0)}%` : "0%"}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Across active competencies</div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Verified Evidence
-                </div>
-                <div className="mt-1 text-2xl font-bold font-mono text-sky-400">
-                  {totalEvidenceCount}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Demonstrated learning proofs</div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Pedagogical Gaps
-                </div>
-                <div className="mt-1 text-2xl font-bold font-mono text-amber-400">
-                  {gaps.length}
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Areas requiring attention</div>
-              </div>
-            </div>
-
-            {/* Action Alert Banner */}
-            {actionMessage && (
-              <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs flex items-center justify-between">
-                <span>{actionMessage}</span>
-                <button onClick={() => setActionMessage(null)} className="text-slate-400 hover:text-white">✕</button>
-              </div>
-            )}
-
-            {/* ==========================================================
-                THE VISUAL CENTER: NEXT BEST ACTION CARD (§11, §12)
-                ========================================================== */}
-            <div className="rounded-2xl border-2 border-sky-500/40 bg-gradient-to-b from-sky-950/20 via-slate-900/60 to-slate-900/80 p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
-
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                    Recommended Action
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-                </div>
-
-                {recommendation && (
-                  <span
-                    className={`text-xs font-bold px-3 py-1 rounded-full border ${getActionBadgeColor(
-                      recommendation.action
-                    )}`}
-                  >
-                    {recommendation.action}
-                  </span>
-                )}
-              </div>
-
-              {loadingDashboard ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
-                  <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs">Evaluating learner state and DAG prerequisites...</p>
-                </div>
-              ) : recommendation ? (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                      {recommendation.competencyTitle || recommendation.competencyId}
-                    </h2>
-                    <div className="mt-2 flex items-center gap-4 text-xs text-slate-400">
-                      <span>⏱️ Est. Time: {recommendation.estimatedMinutes} mins</span>
-                      <span>•</span>
-                      <span>Priority Weight: {recommendation.priority}/100</span>
-                    </div>
-                  </div>
-
-                  {/* Why Rationale (§11) */}
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-1.5">
-                    <div className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">
-                      Why are you being asked to do this?
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                      {recommendation.reason}
-                    </p>
-                  </div>
-
-                  {/* Action CTAs */}
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <Link
-                      href={`/activity?goalId=${activeGoal.id}&competencyId=${recommendation.competencyId}&action=${recommendation.action}&recId=${recommendation.id}`}
-                      className="px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-lg shadow-sky-500/25 transition-all flex items-center gap-2"
-                    >
-                      <span>Start Activity</span>
-                      <span>→</span>
-                    </Link>
-
-                    <button
-                      onClick={handleAcceptRecommendation}
-                      className="px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-750 border border-slate-700 transition-colors"
-                    >
-                      Accept Action
-                    </button>
-
-                    <button
-                      onClick={handleSkipRecommendation}
-                      className="px-4 py-3 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      Skip For Now
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-8 text-center space-y-3">
-                  <p className="text-sm text-slate-400">
-                    No active recommendation. Take your diagnostic or check your learning map.
-                  </p>
-                  <Link
-                    href={`/diagnostic?goalId=${activeGoal.id}`}
-                    className="inline-block px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 text-white"
-                  >
-                    Start Diagnostic
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Active Gaps Callout (§16) */}
-            {gaps.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                    Active Learning Gaps Needing Attention ({gaps.length})
-                  </h3>
-                  <span className="text-[11px] text-slate-500">
-                    Targeted by Remediation &amp; Practice
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {gaps.map((gap) => (
-                    <GapAlert key={gap.id} gap={gap} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Adaptive Learning Plan Preview (§10, §11) */}
-            {planItems.length > 0 && (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                      Upcoming Adaptive Learning Path
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Dynamically reconstructed from prerequisite mastery and gap states.
-                    </p>
-                  </div>
+                ) : (
                   <Link
                     href="/map"
-                    className="text-xs text-sky-400 hover:text-sky-300 font-medium"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08] transition-colors"
                   >
-                    View Full Graph →
+                    View Map →
                   </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div className="p-3.5 rounded-xl border border-white/[0.04] bg-[#07090e]">
+                <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                  Baseline Diagnostic
                 </div>
-
-                <div className="divide-y divide-slate-800/80">
-                  {planItems.slice(0, 5).map((item, idx) => (
-                    <div
-                      key={item.competencyId}
-                      className="py-3 flex items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-[10px] font-mono font-semibold text-slate-400 flex items-center justify-center">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <div className="text-xs font-medium text-slate-200">{item.title}</div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-md">
-                            {item.reason}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getActionBadgeColor(
-                            item.action
-                          )}`}
-                        >
-                          {item.action}
-                        </span>
-                        <Link
-                          href={`/activity?goalId=${activeGoal.id}&competencyId=${item.competencyId}&action=${item.action}`}
-                          className="px-2.5 py-1 rounded text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors"
-                        >
-                          Practice
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-lg font-bold font-mono text-white mt-1">
+                  {learningState?.diagnosticCompleted
+                    ? `${learningState.overallBaselineScore.toFixed(0)}%`
+                    : "Not Started"}
                 </div>
               </div>
+
+              <div className="p-3.5 rounded-xl border border-white/[0.04] bg-[#07090e]">
+                <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                  Demonstrated Mastery
+                </div>
+                <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
+                  {avgMastery > 0 ? `${avgMastery.toFixed(0)}%` : "0%"}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-white/[0.04] bg-[#07090e] flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                      Next Action
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {loadingDashboard && (
+                        <div className="w-2.5 h-2.5 border border-white/20 border-t-white rounded-full animate-spin" />
+                      )}
+                      {recommendation && (
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getActionBadgeColor(
+                            recommendation.action
+                          )}`}
+                        >
+                          {recommendation.action}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-200 mt-1 truncate">
+                    {recommendation?.competencyTitle ||
+                      (!learningState?.diagnosticCompleted ? "Calibrate baseline" : "Adaptive review")}
+                  </div>
+                </div>
+                <div className="pt-2 flex items-center justify-between">
+                  {!learningState?.diagnosticCompleted ? (
+                    <Link
+                      href={`/diagnostic?goalId=${activeGoal.id}`}
+                      className="text-xs text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1"
+                    >
+                      Start diagnostic →
+                    </Link>
+                  ) : recommendation ? (
+                    <Link
+                      href={`/activity?goalId=${activeGoal.id}&competencyId=${recommendation.competencyId}&action=${recommendation.action}&recId=${recommendation.id}`}
+                      className="text-xs text-sky-400 hover:text-sky-300 font-medium inline-flex items-center gap-1"
+                    >
+                      Continue practice →
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/map"
+                      className="text-xs text-slate-400 hover:text-white font-medium inline-flex items-center gap-1"
+                    >
+                      Browse competencies →
+                    </Link>
+                  )}
+                  {planItems.length > 0 && (
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {planItems.length} in plan
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ==========================================================
+            SOVEREIGN HOME HERO — "WHAT DO YOU WANT TO LEARN?" (§3, §4, §5)
+            ========================================================== */}
+        <section className="space-y-6">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono tracking-[0.2em] uppercase bg-white/[0.04] text-slate-400 border border-white/[0.08]">
+              <span>Adaptive Calibration</span>
+              <span className="text-slate-600">/</span>
+              <span>Intention Entry</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-light tracking-tight text-white font-serif">
+              What do you want to learn?
+            </h1>
+
+            <p className="text-sm sm:text-base text-slate-400 max-w-2xl leading-relaxed">
+              Tell Knowra what you want to learn in plain language, or choose a curated path below.
+              Our engine calibrates your baseline and guides you through prerequisite mastery.
+            </p>
+          </div>
+
+          {/* Primary Free-Text Goal Intake Form */}
+          <form onSubmit={handleFreeTextSubmit} className="space-y-4">
+            <div className="relative rounded-2xl border border-white/[0.1] bg-[#0c1018] p-2 sm:p-3 shadow-2xl focus-within:border-white/30 focus-within:ring-1 focus-within:ring-white/20 transition-all">
+              <textarea
+                id="home-learning-objective-input"
+                rows={3}
+                value={rawObjective}
+                onChange={(e) => {
+                  setRawObjective(e.target.value);
+                  if (unsupportedNotice) setUnsupportedNotice(null);
+                  if (goalError) setGoalError(null);
+                }}
+                placeholder={
+                  "e.g. I want to learn Python for my first developer job\nI want to improve mathematics for an exam\nI want to master Excel for financial analysis"
+                }
+                className="w-full bg-transparent px-4 py-3 text-sm sm:text-base text-white placeholder-slate-600 focus:outline-none resize-none leading-relaxed"
+              />
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 px-3 pb-1 border-t border-white/[0.04]">
+                <div className="text-[11px] text-slate-500">
+                  State your intention naturally. Knowra maps prerequisites automatically.
+                </div>
+
+                <button
+                  id="home-start-learning-button"
+                  type="submit"
+                  disabled={submittingGoal || !rawObjective.trim()}
+                  className="px-6 py-2.5 rounded-xl font-medium text-xs sm:text-sm text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide disabled:opacity-40 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  {submittingGoal ? "Setting Up Path..." : "Start learning →"}
+                </button>
+              </div>
+            </div>
+
+            {/* Honest Feedback for Non-MVP Disciplines (§6) */}
+            {unsupportedNotice && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 leading-relaxed space-y-1">
+                <div className="font-semibold text-amber-200 flex items-center gap-2">
+                  <span>ℹ️</span> Curated Calibration Notice
+                </div>
+                <p>{unsupportedNotice}</p>
+              </div>
             )}
+
+            {/* Error Feedback */}
+            {goalError && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-300">
+                {goalError}
+              </div>
+            )}
+          </form>
+        </section>
+
+        {/* ==========================================================
+            CURATED LEARNING PATHS (§4, §7)
+            ========================================================== */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="h-px bg-white/[0.08] flex-1" />
+            <span className="text-xs font-mono tracking-widest text-slate-500 uppercase">
+              or explore a path
+            </span>
+            <div className="h-px bg-white/[0.08] flex-1" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {/* Card 1: Python */}
+            <div
+              id="curated-path-python"
+              onClick={() =>
+                handleSelectCuratedPath(
+                  "python-junior",
+                  "I want to learn Python from beginner to junior developer"
+                )
+              }
+              className="group cursor-pointer rounded-2xl border border-white/[0.08] bg-[#0c1018] hover:border-white/30 hover:bg-[#0f141f] p-6 transition-all duration-200 shadow-xl flex flex-col justify-between space-y-6"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono tracking-widest text-sky-400 uppercase bg-sky-500/10 px-2.5 py-1 rounded-md border border-sky-500/20">
+                    Curated Path
+                  </span>
+                  <span className="text-slate-500 text-xs font-mono">01</span>
+                </div>
+                <h3 className="text-xl font-bold text-white group-hover:text-sky-300 transition-colors">
+                  Python
+                </h3>
+                <p className="text-xs font-medium text-slate-300">
+                  From beginner to junior
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Variables, control flow, functions, modular architecture, and fundamental software engineering principles.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 group-hover:text-white transition-colors">
+                <span>Start Python Path</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
+            {/* Card 2: Mathematics */}
+            <div
+              id="curated-path-mathematics"
+              onClick={() =>
+                handleSelectCuratedPath(
+                  "math-exams",
+                  "I want to master Mathematics for exams and problem solving"
+                )
+              }
+              className="group cursor-pointer rounded-2xl border border-white/[0.08] bg-[#0c1018] hover:border-white/30 hover:bg-[#0f141f] p-6 transition-all duration-200 shadow-xl flex flex-col justify-between space-y-6"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+                    Curated Path
+                  </span>
+                  <span className="text-slate-500 text-xs font-mono">02</span>
+                </div>
+                <h3 className="text-xl font-bold text-white group-hover:text-emerald-300 transition-colors">
+                  Mathematics
+                </h3>
+                <p className="text-xs font-medium text-slate-300">
+                  Exams &amp; problem solving
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Algebraic expressions, linear &amp; quadratic equations, functions, coordinate geometry, and applied problem solving.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 group-hover:text-white transition-colors">
+                <span>Start Mathematics Path</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
+            {/* Card 3: Excel */}
+            <div
+              id="curated-path-excel"
+              onClick={() =>
+                handleSelectCuratedPath(
+                  "excel-pro",
+                  "I want to achieve professional mastery in Excel and spreadsheets"
+                )
+              }
+              className="group cursor-pointer rounded-2xl border border-white/[0.08] bg-[#0c1018] hover:border-white/30 hover:bg-[#0f141f] p-6 transition-all duration-200 shadow-xl flex flex-col justify-between space-y-6"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-2.5 py-1 rounded-md border border-indigo-500/20">
+                    Curated Path
+                  </span>
+                  <span className="text-slate-500 text-xs font-mono">03</span>
+                </div>
+                <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">
+                  Excel
+                </h3>
+                <p className="text-xs font-medium text-slate-300">
+                  Professional mastery
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Advanced formulas, XLOOKUP, Pivot Tables, conditional logic, financial models, and executive data preparation.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-white/[0.04] flex items-center justify-between text-xs text-slate-400 group-hover:text-white transition-colors">
+                <span>Start Excel Path</span>
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==========================================================
+            ACTIVE GAPS CALLOUT (If gaps exist for the active journey)
+            ========================================================== */}
+        {activeGoal && gaps.length > 0 && (
+          <section className="space-y-4 pt-6 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  Identified Knowledge Gaps ({gaps.length})
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Targeted by remediation and active practice exercises.
+                </p>
+              </div>
+              <Link
+                href="/map"
+                className="text-xs text-sky-400 hover:text-sky-300 font-medium"
+              >
+                View in graph →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {gaps.map((gap) => (
+                <GapAlert key={gap.id} gap={gap} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Action toast message */}
+        {actionMessage && (
+          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-xl border border-sky-500/30 bg-[#0c1018] text-sky-300 text-xs shadow-2xl animate-fade-in flex items-center gap-2">
+            <span>✨</span>
+            <span>{actionMessage}</span>
           </div>
         )}
       </main>
