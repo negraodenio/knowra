@@ -88,6 +88,7 @@ describe("S7.6 — Model Benchmark & Astra Validation Suite", () => {
   // ==========================================================================
   describe("3. Unverified Astra Handling", () => {
     it("reports Astra as BLOCKED when DEFAULT_MODEL is unset", () => {
+      delete process.env.EDUIA_PRIMARY_MODEL;
       delete process.env.DEFAULT_MODEL;
       const status = verifyAstraStatus();
 
@@ -98,6 +99,7 @@ describe("S7.6 — Model Benchmark & Astra Validation Suite", () => {
     });
 
     it("never fabricates an arbitrary Astra ID when unconfigured", () => {
+      delete process.env.EDUIA_PRIMARY_MODEL;
       process.env.DEFAULT_MODEL = "";
       const status = verifyAstraStatus();
       expect(status.verified).toBe(false);
@@ -117,6 +119,8 @@ describe("S7.6 — Model Benchmark & Astra Validation Suite", () => {
     });
 
     it("recommends VALIDATION_BLOCKED for Astra when unverified", () => {
+      delete process.env.EDUIA_PRIMARY_MODEL;
+      delete process.env.DEFAULT_MODEL;
       const status = verifyAstraStatus();
       const rec = generateBenchmarkRecommendation([], status);
 
@@ -461,12 +465,13 @@ describe("S7.6 — Model Benchmark & Astra Validation Suite", () => {
   // ==========================================================================
   describe("12. Existing S7.5 Orchestrator Regression", () => {
     it("preserves S7.5 model selection and operational fallback logic", () => {
+      delete process.env.EDUIA_PRIMARY_MODEL;
       process.env.DEFAULT_MODEL = "openai/gpt-4o";
       delete process.env.TUTOR_MODEL;
 
       const decision = aiModelOrchestrator.selectModel({ task: "tutor" });
       expect(decision.model).toBe("openai/gpt-4o");
-      expect(decision.reason).toContain("DEFAULT_MODEL");
+      expect(decision.reason).toContain("EDUIA_PRIMARY_MODEL");
 
       expect(aiModelOrchestrator.isOperationalError(new Error("fetch failed"))).toBe(true);
       expect(aiModelOrchestrator.isOperationalError(new Error("Zod validation error"))).toBe(false);

@@ -8,6 +8,7 @@ export interface AIUsageRecord {
   task: string;
   provider: string;
   model: string;
+  primaryModel?: string;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
@@ -17,7 +18,7 @@ export interface AIUsageRecord {
   errorMessage?: string;
   timestamp?: string;
 
-  // S7.5 Model Orchestrator Telemetry
+  // S7.5 / S7.7 Model Orchestrator Telemetry
   orchestrationPolicy?: string;
   selectionReason?: string;
   fallbackUsed?: boolean;

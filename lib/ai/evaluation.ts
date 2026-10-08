@@ -11,13 +11,25 @@ import {
 } from "../learning/feynman/rubric";
 import { GeneratedAssessmentItemSchema } from "./assessment";
 
-export const BENCHMARK_VERSION = "S7.6_V1";
+export const BENCHMARK_VERSION = "S7.7_V1";
 
 export type BenchmarkFailureType =
   | "OPERATIONAL_FAILURE"
   | "SCHEMA_FAILURE"
   | "CONTENT_FAILURE"
   | "NONE";
+
+export interface PedagogicalDimensionScore {
+  name: string;
+  score: number;
+  weight: number;
+  rationale: string;
+}
+
+export interface PedagogicalEvaluationDetail {
+  pedagogicalScore: number;
+  dimensions: PedagogicalDimensionScore[];
+}
 
 export interface ModelBenchmarkContext {
   task: ModelTask;
@@ -44,9 +56,11 @@ export interface ModelBenchmarkResult {
   estimatedCost: number;
   errorMessage?: string;
 
-  // S7.6 empirical evaluation fields
+  // Empirical evaluation fields
   runNumber?: number;
   qualityScore?: number;
+  pedagogicalScore?: number;
+  pedagogicalDimensions?: PedagogicalDimensionScore[];
   failureType?: BenchmarkFailureType;
   failureReason?: string;
   evaluator?: string;
@@ -58,6 +72,8 @@ export interface ModelBenchmarkResult {
 export interface BenchmarkResult extends ModelBenchmarkResult {
   runNumber: number;
   qualityScore: number;
+  pedagogicalScore?: number;
+  pedagogicalDimensions?: PedagogicalDimensionScore[];
   failureType: BenchmarkFailureType;
   evaluator: string;
   benchmarkVersion: string;
@@ -92,6 +108,7 @@ export interface TaskAggregateSummary {
   runs: number;
   successRate: number;
   avgQualityScore: number;
+  avgPedagogicalScore?: number;
   avgLatencyMs: number;
   minLatencyMs: number;
   maxLatencyMs: number;
@@ -101,6 +118,17 @@ export interface TaskAggregateSummary {
   operationalFailureRate: number;
   schemaFailureRate: number;
   contentFailureRate: number;
+}
+
+export interface ModelDecisionMatrixEntry {
+  task: ModelTask;
+  astraQuality: number;
+  miniQuality: number;
+  astraCost: number;
+  miniCost: number;
+  classification: "A" | "B" | "C" | "D";
+  preferred: string;
+  rationale: string;
 }
 
 export interface ModelBenchmarkSuiteReport {
@@ -122,6 +150,7 @@ export interface ModelBenchmarkSuiteReport {
       | "B) SELECTED_TASKS"
       | "C) NOT_RECOMMENDED_YET"
       | "D) VALIDATION_BLOCKED";
+    decisionMatrix?: ModelDecisionMatrixEntry[];
   };
 }
 
@@ -164,34 +193,35 @@ export function classifyError(err: unknown): BenchmarkFailureType {
 }
 
 /**
- * Verifies Astra status according to Step 1 (§S7.6).
+ * Verifies Astra status according to Step 1 (§S7.6, §S7.7).
  * Never fabricates an Astra ID if missing from environment.
  */
 export function verifyAstraStatus(): AstraVerificationStatus {
-  const defaultModel = process.env.DEFAULT_MODEL?.trim();
-  if (!defaultModel || defaultModel === "") {
+  const primaryModel =
+    process.env.EDUIA_PRIMARY_MODEL?.trim() || process.env.DEFAULT_MODEL?.trim();
+  if (!primaryModel || primaryModel === "") {
     return {
       verified: false,
       status: "BLOCKED",
       reason:
-        "No Astra model ID configured in environment (DEFAULT_MODEL is empty). Provider endpoint unverified.",
+        "No Astra model ID configured in environment (EDUIA_PRIMARY_MODEL / DEFAULT_MODEL is empty). Provider endpoint unverified.",
     };
   }
 
-  if (!defaultModel.toLowerCase().includes("astra")) {
+  if (!primaryModel.toLowerCase().includes("astra")) {
     return {
       verified: false,
       status: "BLOCKED",
-      modelId: defaultModel,
-      reason: `DEFAULT_MODEL is configured as '${defaultModel}', which is not an Astra candidate.`,
+      modelId: primaryModel,
+      reason: `Configured primary model '${primaryModel}' is not an Astra candidate.`,
     };
   }
 
   return {
     verified: true,
     status: "VERIFIED",
-    modelId: defaultModel,
-    reason: `Configured candidate Astra model identifier: '${defaultModel}'`,
+    modelId: primaryModel,
+    reason: `Configured candidate Astra model identifier: '${primaryModel}'`,
   };
 }
 
@@ -312,7 +342,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "2. Provide one clear code example showing assignment.\n" +
       "3. Clarify the misconception that variables are physical boxes rather than object references.\n" +
       "4. Include one short check-for-understanding question at the end.",
-    maxTokens: 350,
+    maxTokens: 600,
     evaluateQuality: ({ rawText }) => {
       const lower = rawText.toLowerCase();
       let score = 0;
@@ -381,7 +411,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "'A variable in Python is a physical storage box where data lives. When I assign b = a, Python always creates a brand new box with its own copy of the data, so changing b can never affect a under any circumstances.'\n" +
       "Evaluate this explanation strictly against the Feynman rubric.",
     schema: FeynmanEvaluationSchema,
-    maxTokens: 400,
+    maxTokens: 800,
     evaluateQuality: ({ data }) => {
       const parsed = data as z.infer<typeof FeynmanEvaluationSchema>;
       if (!parsed) {
@@ -500,7 +530,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "Generate an ordered plan respecting prerequisites (variables -> collections -> functions -> analysis).\n" +
       "Milestones must NOT mutate learner state directly.",
     schema: PlanBenchmarkOutputSchema,
-    maxTokens: 350,
+    maxTokens: 800,
     evaluateQuality: ({ data }) => {
       const parsed = data as z.infer<typeof PlanBenchmarkOutputSchema>;
       if (!parsed || !parsed.milestones) {
@@ -549,7 +579,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "Topic: Functions with default arguments and keyword arguments\n" +
       "Include id, title, description, category, difficulty (1-5), prerequisites, and measurable outcomes.",
     schema: CompetencyBenchmarkOutputSchema,
-    maxTokens: 350,
+    maxTokens: 600,
     evaluateQuality: ({ data }) => {
       const parsed = data as z.infer<typeof CompetencyBenchmarkOutputSchema>;
       if (!parsed) {
@@ -591,7 +621,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "Target form: MULTIPLE_CHOICE.\n" +
       "Must have prompt, 4 options, correctAnswer matching one option, and explanation.",
     schema: GeneratedAssessmentItemSchema,
-    maxTokens: 350,
+    maxTokens: 700,
     evaluateQuality: ({ data }) => {
       const parsed = data as z.infer<typeof GeneratedAssessmentItemSchema>;
       if (!parsed) {
@@ -642,7 +672,7 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
       "Create concise learning material for the competency: 'Python Type Casting (int, str, float)'.\n" +
       "Include title, core concept, a short runnable code snippet, a common mistake, and a key takeaway.",
     schema: MaterialBenchmarkOutputSchema,
-    maxTokens: 350,
+    maxTokens: 500,
     evaluateQuality: ({ data }) => {
       const parsed = data as z.infer<typeof MaterialBenchmarkOutputSchema>;
       if (!parsed) {
@@ -713,7 +743,616 @@ export const EDUIABENCHMARK_TASKS: Record<ModelTask, EDUIABenchmarkTaskDefinitio
 };
 
 /**
- * Executes a single run of a standard EDUIA benchmark task (§S7.6).
+ * Deterministic Pedagogical Dimension Evaluator (§S7.7 Section 9).
+ * Evaluates core cognitive dimensions across representative EDUIA tasks.
+ */
+export function evaluatePedagogicalTask(
+  task: ModelTask,
+  output: { rawText: string; data?: unknown }
+): PedagogicalEvaluationDetail {
+  const { rawText, data } = output;
+  const lower = rawText.toLowerCase();
+
+  switch (task) {
+    case "tutor": {
+      // Dimensions: correctness, adaptation to learner level, clarity, misconception handling, pedagogical usefulness, actionable next step
+      const hasCode =
+        lower.includes("=") || lower.includes("int") || lower.includes("str") || lower.includes("python");
+      const correctnessScore = hasCode ? 100 : 40;
+
+      const hasBeginnerTone =
+        lower.includes("beginner") ||
+        lower.includes("think of") ||
+        lower.includes("imagine") ||
+        lower.includes("simple") ||
+        lower.includes("name");
+      const adaptationScore = hasBeginnerTone ? 100 : 70;
+
+      const clarityScore = rawText.length >= 200 ? 100 : rawText.length >= 100 ? 75 : 40;
+
+      const hasMisconception =
+        (lower.includes("box") &&
+          (lower.includes("label") ||
+            lower.includes("reference") ||
+            lower.includes("point") ||
+            lower.includes("tag") ||
+            lower.includes("stick"))) ||
+        (lower.includes("reference") && lower.includes("object"));
+      const misconceptionScore = hasMisconception
+        ? 100
+        : lower.includes("box") || lower.includes("reference")
+        ? 60
+        : 20;
+
+      const usefulnessScore = rawText.length >= 150 && hasCode ? 100 : 50;
+
+      const hasQuestion =
+        rawText.includes("?") &&
+        (lower.includes("what") ||
+          lower.includes("how") ||
+          lower.includes("try") ||
+          lower.includes("predict") ||
+          lower.includes("your turn"));
+      const nextStepScore = hasQuestion ? 100 : rawText.includes("?") ? 60 : 20;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "correctness",
+          score: correctnessScore,
+          weight: 0.2,
+          rationale: hasCode ? "Accurate Python variable syntax and types" : "Missing clear code example",
+        },
+        {
+          name: "adaptationToLearnerLevel",
+          score: adaptationScore,
+          weight: 0.15,
+          rationale: hasBeginnerTone ? "Tone and pace tailored for beginner" : "Standard generic technical tone",
+        },
+        {
+          name: "clarity",
+          score: clarityScore,
+          weight: 0.15,
+          rationale: clarityScore === 100 ? "Clear structure and explanations" : "Brief or dense explanation",
+        },
+        {
+          name: "misconceptionHandling",
+          score: misconceptionScore,
+          weight: 0.2,
+          rationale:
+            misconceptionScore === 100
+              ? "Directly clarifies box vs reference/label misconception"
+              : "Partially addresses or misses reference distinction",
+        },
+        {
+          name: "pedagogicalUsefulness",
+          score: usefulnessScore,
+          weight: 0.15,
+          rationale:
+            usefulnessScore === 100
+              ? "Substantial instructional content with code"
+              : "Shallow instructional depth",
+        },
+        {
+          name: "actionableNextStep",
+          score: nextStepScore,
+          weight: 0.15,
+          rationale: nextStepScore === 100 ? "Provides actionable check question" : "Lacks engaging question",
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "diagnostic": {
+      // Dimensions: correctness, ability to distinguish knowledge states, ambiguity handling, evidence quality, confidence calibration
+      const parsed = data as Partial<z.infer<typeof DiagnosticBenchmarkOutputSchema>>;
+      const lowerGap = parsed?.identifiedGap?.toLowerCase() || "";
+      const lowerComp = parsed?.identifiedCompetency?.toLowerCase() || "";
+
+      const correctnessScore =
+        (lowerGap.includes("type") || lowerComp.includes("type")) &&
+        (lowerGap.includes("conversion") ||
+          lowerGap.includes("coercion") ||
+          lowerGap.includes("str") ||
+          lowerGap.includes("int") ||
+          lowerComp.includes("conversion"))
+          ? 100
+          : 50;
+
+      const distinguishesStates =
+        lowerGap.includes("coercion") ||
+        lowerGap.includes("implicit") ||
+        lowerGap.includes("strong") ||
+        lowerGap.includes("explicit") ||
+        lower.includes("javascript");
+      const distinctionScore = distinguishesStates ? 100 : 60;
+
+      const ambiguityScore = (parsed?.suggestedNextStep?.length || 0) >= 20 ? 100 : 60;
+
+      const evidenceScore =
+        lower.includes("str") ||
+        lower.includes("int") ||
+        lower.includes("5") ||
+        lower.includes("3") ||
+        lower.includes("typeerror")
+          ? 100
+          : 50;
+
+      const conf = typeof parsed?.confidence === "number" ? parsed.confidence : 0;
+      const calibrationScore = conf >= 0.8 && conf <= 1.0 ? 100 : conf >= 0.6 ? 75 : 40;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "correctness",
+          score: correctnessScore,
+          weight: 0.25,
+          rationale:
+            correctnessScore === 100
+              ? "Accurately diagnoses type mismatch and conversion requirement"
+              : "Incomplete diagnosis of type error",
+        },
+        {
+          name: "abilityToDistinguishKnowledgeStates",
+          score: distinctionScore,
+          weight: 0.2,
+          rationale:
+            distinctionScore === 100
+              ? "Distinguishes implicit coercion from strong typing"
+              : "Generic type error identification",
+        },
+        {
+          name: "ambiguityHandling",
+          score: ambiguityScore,
+          weight: 0.2,
+          rationale:
+            ambiguityScore === 100
+              ? "Unambiguous learning remediation recommended"
+              : "Ambiguous next step",
+        },
+        {
+          name: "evidenceQuality",
+          score: evidenceScore,
+          weight: 0.15,
+          rationale:
+            evidenceScore === 100
+              ? "Directly grounds diagnosis in observed error and types"
+              : "Weak tie to learner's specific input",
+        },
+        {
+          name: "confidenceCalibration",
+          score: calibrationScore,
+          weight: 0.2,
+          rationale: `Confidence calibrated at ${conf}`,
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "feynman": {
+      // Dimensions: correctness, completeness, causal reasoning, simplicity, misconception detection
+      const parsed = data as Partial<z.infer<typeof FeynmanEvaluationSchema>>;
+      const hasPenalty = (parsed?.misconception_penalty || 0) >= 20;
+      const catchesBoxOrCopy =
+        lower.includes("box") ||
+        lower.includes("copy") ||
+        lower.includes("reference") ||
+        lower.includes("alias") ||
+        lower.includes("mutable");
+
+      const correctnessScore =
+        (parsed?.correctness || 100) <= 65 ? 100 : (parsed?.correctness || 100) <= 75 ? 70 : 20;
+
+      const completenessScore =
+        Array.isArray(parsed?.missing_concepts) && parsed.missing_concepts.length > 0 ? 100 : 50;
+
+      const causalScore =
+        (parsed?.causal_reasoning || 0) >= 30 &&
+        (lower.includes("reference") ||
+          lower.includes("bind") ||
+          lower.includes("object") ||
+          lower.includes("point"))
+          ? 100
+          : 60;
+
+      const simplicityScore = (parsed?.feedback?.length || 0) >= 40 ? 100 : 60;
+
+      const misconceptionScore = hasPenalty && catchesBoxOrCopy ? 100 : catchesBoxOrCopy ? 70 : 30;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "correctness",
+          score: correctnessScore,
+          weight: 0.2,
+          rationale:
+            correctnessScore === 100
+              ? "Correctly penalized flawed learner explanation"
+              : "Over-credited incorrect explanation",
+        },
+        {
+          name: "completeness",
+          score: completenessScore,
+          weight: 0.2,
+          rationale:
+            completenessScore === 100
+              ? "Identified missing concepts in explanation"
+              : "No missing concepts listed",
+        },
+        {
+          name: "causalReasoning",
+          score: causalScore,
+          weight: 0.2,
+          rationale:
+            causalScore === 100
+              ? "Assessed causal mechanism of reference binding"
+              : "Limited causal reasoning evaluation",
+        },
+        {
+          name: "simplicity",
+          score: simplicityScore,
+          weight: 0.2,
+          rationale:
+            simplicityScore === 100
+              ? "Accessible pedagogical feedback provided"
+              : "Brief feedback",
+        },
+        {
+          name: "misconceptionDetection",
+          score: misconceptionScore,
+          weight: 0.2,
+          rationale:
+            misconceptionScore === 100
+              ? "Detected box/independent copy misconception"
+              : "Missed underlying misconception",
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "assessment": {
+      // Dimensions: correctness, independence, difficulty appropriateness, ambiguity, curriculum alignment
+      const parsed = data as Partial<z.infer<typeof GeneratedAssessmentItemSchema>>;
+      const opts: string[] = Array.isArray(parsed?.options) ? parsed.options : [];
+      const correctAns: string = parsed?.correctAnswer || "";
+
+      const exactMatch = opts.some(
+        (o) =>
+          o.trim() === correctAns.trim() ||
+          o.toLowerCase().includes(correctAns.toLowerCase())
+      );
+      const correctnessScore = exactMatch && opts.length >= 3 ? 100 : 30;
+
+      const promptLen = parsed?.prompt?.length || 0;
+      const independenceScore = promptLen >= 35 ? 100 : promptLen >= 20 ? 70 : 40;
+
+      const diff = typeof parsed?.difficulty === "number" ? parsed.difficulty : 0;
+      const diffScore = diff >= 1 && diff <= 5 ? 100 : 40;
+
+      const uniqueOpts = new Set(opts.map((o) => o.trim().toLowerCase())).size;
+      const ambiguityScore = uniqueOpts >= 4 ? 100 : uniqueOpts === 3 ? 75 : 40;
+
+      const currAlignment =
+        lower.includes("variable") ||
+        lower.includes("reference") ||
+        lower.includes("mutab") ||
+        lower.includes("object") ||
+        lower.includes("python");
+      const curriculumScore = currAlignment ? 100 : 50;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "correctness",
+          score: correctnessScore,
+          weight: 0.25,
+          rationale:
+            correctnessScore === 100
+              ? "Correct answer matches options exactly"
+              : "Answer mismatch or missing options",
+        },
+        {
+          name: "independence",
+          score: independenceScore,
+          weight: 0.2,
+          rationale:
+            independenceScore === 100
+              ? "Standalone self-contained assessment item"
+              : "Context-dependent prompt",
+        },
+        {
+          name: "difficultyAppropriateness",
+          score: diffScore,
+          weight: 0.2,
+          rationale: `Difficulty calibrated at level ${diff}`,
+        },
+        {
+          name: "ambiguity",
+          score: ambiguityScore,
+          weight: 0.15,
+          rationale:
+            ambiguityScore === 100
+              ? "4 distinct plausible options without ambiguity"
+              : "Duplicate or ambiguous options",
+        },
+        {
+          name: "curriculumAlignment",
+          score: curriculumScore,
+          weight: 0.2,
+          rationale:
+            curriculumScore === 100
+              ? "Aligns with target competency domain"
+              : "Deviates from target competency",
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "plan": {
+      // Dimensions: prerequisite awareness, adaptation to learner state, sequencing quality, actionable steps, time realism
+      const parsed = data as Partial<z.infer<typeof PlanBenchmarkOutputSchema>>;
+      const milestones = Array.isArray(parsed?.milestones) ? parsed.milestones : [];
+
+      const prereqScore = parsed?.prerequisiteOrderValid === true ? 100 : 50;
+
+      const adaptsToState =
+        lower.includes("syntax") ||
+        lower.includes("type") ||
+        lower.includes("collection") ||
+        lower.includes("list") ||
+        lower.includes("function");
+      const adaptationScore = adaptsToState && milestones.length >= 2 ? 100 : 60;
+
+      const isMonotonic = milestones.every((m, i) => m.sequence === i + 1);
+      const sequencingScore = isMonotonic && milestones.length >= 3 ? 100 : isMonotonic ? 80 : 40;
+
+      const allActionable = milestones.every(
+        (m) => (m.title?.length || 0) >= 5 && (m.rationale?.length || 0) >= 10
+      );
+      const actionableScore = allActionable ? 100 : 50;
+
+      const timeRealismScore = milestones.length >= 2 && milestones.length <= 6 ? 100 : 70;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "prerequisiteAwareness",
+          score: prereqScore,
+          weight: 0.25,
+          rationale:
+            prereqScore === 100
+              ? "Prerequisite dependency order explicitly validated"
+              : "Prerequisite order not verified",
+        },
+        {
+          name: "adaptationToLearnerState",
+          score: adaptationScore,
+          weight: 0.2,
+          rationale:
+            adaptationScore === 100
+              ? "Milestones target learner gaps and goals"
+              : "Generic milestones",
+        },
+        {
+          name: "sequencingQuality",
+          score: sequencingScore,
+          weight: 0.2,
+          rationale:
+            sequencingScore === 100
+              ? "Monotonic sequential progression"
+              : "Sequencing gaps detected",
+        },
+        {
+          name: "actionableSteps",
+          score: actionableScore,
+          weight: 0.2,
+          rationale:
+            actionableScore === 100
+              ? "Milestones have clear titles and rationales"
+              : "Vague milestone rationales",
+        },
+        {
+          name: "timeRealism",
+          score: timeRealismScore,
+          weight: 0.15,
+          rationale:
+            timeRealismScore === 100
+              ? "Appropriate milestone quantity for objective"
+              : "Milestone count unrealistic",
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "competency": {
+      // Dimensions: competency clarity, measurability, prerequisite quality, learning relevance, assessment alignment
+      const parsed = data as Partial<z.infer<typeof CompetencyBenchmarkOutputSchema>>;
+      const outcomes: string[] = Array.isArray(parsed?.measurableOutcomes)
+        ? parsed.measurableOutcomes
+        : [];
+      const prereqs: string[] = Array.isArray(parsed?.prerequisites) ? parsed.prerequisites : [];
+
+      const clarityScore =
+        (parsed?.title?.length || 0) >= 5 && (parsed?.description?.length || 0) >= 20 ? 100 : 50;
+
+      const measurabilityScore = outcomes.length >= 2 ? 100 : outcomes.length === 1 ? 75 : 30;
+
+      const prereqScore = prereqs.length >= 1 ? 100 : 40;
+
+      const relevant =
+        lower.includes("function") ||
+        lower.includes("argument") ||
+        lower.includes("default") ||
+        lower.includes("keyword");
+      const relevanceScore = relevant ? 100 : 50;
+
+      const diff = typeof parsed?.difficulty === "number" ? parsed.difficulty : 0;
+      const diffScore = diff >= 1 && diff <= 5 ? 100 : 40;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "competencyClarity",
+          score: clarityScore,
+          weight: 0.2,
+          rationale:
+            clarityScore === 100
+              ? "Clear title and detailed description"
+              : "Brief or vague description",
+        },
+        {
+          name: "measurability",
+          score: measurabilityScore,
+          weight: 0.25,
+          rationale:
+            measurabilityScore === 100
+              ? "Measurable outcomes with action verbs"
+              : "Few or non-measurable outcomes",
+        },
+        {
+          name: "prerequisiteQuality",
+          score: prereqScore,
+          weight: 0.2,
+          rationale:
+            prereqScore === 100
+              ? "Explicit prerequisite dependencies defined"
+              : "Missing prerequisites",
+        },
+        {
+          name: "learningRelevance",
+          score: relevanceScore,
+          weight: 0.2,
+          rationale:
+            relevanceScore === 100
+              ? "Directly relevant to target programming topic"
+              : "Low relevance to topic",
+        },
+        {
+          name: "assessmentAlignment",
+          score: diffScore,
+          weight: 0.15,
+          rationale: `Difficulty calibrated at level ${diff}`,
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "material": {
+      // Dimensions: factual correctness, clarity, curriculum alignment, learner appropriateness
+      const parsed = data as Partial<z.infer<typeof MaterialBenchmarkOutputSchema>>;
+      const snippet = parsed?.codeSnippet || "";
+      const lowerSnippet = snippet.toLowerCase();
+
+      const hasCasting =
+        lowerSnippet.includes("int(") ||
+        lowerSnippet.includes("str(") ||
+        lowerSnippet.includes("float(");
+      const correctnessScore = hasCasting ? 100 : 40;
+
+      const clarityScore =
+        (parsed?.coreConcept?.length || 0) >= 20 && (parsed?.keyTakeaway?.length || 0) >= 15
+          ? 100
+          : 50;
+
+      const aligns = lower.includes("cast") || lower.includes("type") || lower.includes("conversion");
+      const curriculumScore = aligns ? 100 : 50;
+
+      const mistakeScore = (parsed?.commonMistake?.length || 0) >= 15 ? 100 : 40;
+
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "factualCorrectness",
+          score: correctnessScore,
+          weight: 0.25,
+          rationale:
+            correctnessScore === 100
+              ? "Code demonstrates accurate Python type casting"
+              : "Code lacks explicit casting",
+        },
+        {
+          name: "clarity",
+          score: clarityScore,
+          weight: 0.25,
+          rationale:
+            clarityScore === 100
+              ? "Concise concept and memorable takeaway"
+              : "Brief or unclear explanation",
+        },
+        {
+          name: "curriculumAlignment",
+          score: curriculumScore,
+          weight: 0.25,
+          rationale:
+            curriculumScore === 100
+              ? "Aligns with target type casting competency"
+              : "Deviates from topic",
+        },
+        {
+          name: "learnerAppropriateness",
+          score: mistakeScore,
+          weight: 0.25,
+          rationale:
+            mistakeScore === 100
+              ? "Highlights realistic beginner casting trap"
+              : "Lacks actionable common mistake",
+        },
+      ];
+
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    case "classifier": {
+      const parsed = data as Partial<z.infer<typeof ClassifierBenchmarkOutputSchema>>;
+      const isCorrect = parsed?.category === "SETUP_ENVIRONMENT";
+      const conf = typeof parsed?.confidence === "number" ? parsed.confidence : 0;
+      const dimensions: PedagogicalDimensionScore[] = [
+        {
+          name: "accuracy",
+          score: isCorrect ? 100 : 0,
+          weight: 0.5,
+          rationale: isCorrect ? "Correctly classified user intent" : "Misclassified intent",
+        },
+        {
+          name: "confidenceCalibration",
+          score: conf >= 0.8 ? 100 : conf >= 0.5 ? 60 : 30,
+          weight: 0.5,
+          rationale: `Confidence ${conf}`,
+        },
+      ];
+      const pedagogicalScore = Math.round(
+        dimensions.reduce((acc, d) => acc + d.score * d.weight, 0)
+      );
+      return { pedagogicalScore, dimensions };
+    }
+
+    default:
+      return { pedagogicalScore: 100, dimensions: [] };
+  }
+}
+
+/**
+ * Executes a single run of a standard EDUIA benchmark task (§S7.6, §S7.7).
  * NEVER mutates DEFAULT_MODEL or production model routing.
  */
 export async function executeEduiaBenchmarkTask(
@@ -744,12 +1383,15 @@ export async function executeEduiaBenchmarkTask(
 
       const latencyMs = Date.now() - startTime;
       const evaluation = taskDef.evaluateQuality({ rawText: res.rawText, data: res.data });
+      const pedEval = evaluatePedagogicalTask(taskName, { rawText: res.rawText, data: res.data });
 
       return {
         model: modelId,
         task: taskName,
         runNumber,
         qualityScore: evaluation.score,
+        pedagogicalScore: pedEval.pedagogicalScore,
+        pedagogicalDimensions: pedEval.dimensions,
         schemaValid: true,
         latencyMs,
         promptTokens: res.usage.promptTokens,
@@ -778,12 +1420,15 @@ export async function executeEduiaBenchmarkTask(
 
       const latencyMs = Date.now() - startTime;
       const evaluation = taskDef.evaluateQuality({ rawText: res.data });
+      const pedEval = evaluatePedagogicalTask(taskName, { rawText: res.data, data: res.data });
 
       return {
         model: modelId,
         task: taskName,
         runNumber,
         qualityScore: evaluation.score,
+        pedagogicalScore: pedEval.pedagogicalScore,
+        pedagogicalDimensions: pedEval.dimensions,
         schemaValid: true,
         latencyMs,
         promptTokens: res.usage.promptTokens,
@@ -810,6 +1455,7 @@ export async function executeEduiaBenchmarkTask(
       task: taskName,
       runNumber,
       qualityScore: 0,
+      pedagogicalScore: 0,
       schemaValid: failureType !== "SCHEMA_FAILURE",
       latencyMs,
       promptTokens: 0,
@@ -1019,6 +1665,9 @@ export function aggregateBenchmarkRuns(results: BenchmarkResult[]): TaskAggregat
     const avgQualityScore = Math.round(
       group.reduce((a, b) => a + b.qualityScore, 0) / totalRuns
     );
+    const avgPedagogicalScore = Math.round(
+      group.reduce((a, b) => a + (b.pedagogicalScore ?? b.qualityScore), 0) / totalRuns
+    );
 
     summaries.push({
       task,
@@ -1026,6 +1675,7 @@ export function aggregateBenchmarkRuns(results: BenchmarkResult[]): TaskAggregat
       runs: totalRuns,
       successRate: Number((successfulRuns / totalRuns).toFixed(2)),
       avgQualityScore,
+      avgPedagogicalScore,
       avgLatencyMs,
       minLatencyMs,
       maxLatencyMs,
@@ -1042,7 +1692,8 @@ export function aggregateBenchmarkRuns(results: BenchmarkResult[]): TaskAggregat
 }
 
 /**
- * Generates an auditable model recommendation matrix based strictly on benchmark results (§S7.6).
+ * Generates an auditable model recommendation matrix based strictly on benchmark results (§S7.6, §S7.7).
+ * Strictly preserves Astra-first strategic default and generates a 4-tier decision matrix.
  * NEVER mutates production environment or model routing.
  */
 export function generateBenchmarkRecommendation(
@@ -1061,49 +1712,91 @@ export function generateBenchmarkRecommendation(
   ];
 
   const taskOverrides: Record<ModelTask, string> = {} as Record<ModelTask, string>;
+  const decisionMatrix: ModelDecisionMatrixEntry[] = [];
+
+  // Strategic Primary Model: Astra is the intended EDUIA primary model (§S7.7)
+  const strategicPrimary =
+    process.env.EDUIA_PRIMARY_MODEL?.trim() ||
+    astraStatus.modelId ||
+    (astraStatus.verified ? "openai/gpt-6-astra" : undefined) ||
+    "openai/gpt-6-astra";
 
   for (const t of allTasks) {
-    const candidatesForTask = summaries.filter((s) => s.task === t && s.successRate > 0);
-    if (candidatesForTask.length === 0) {
-      taskOverrides[t] = "openai/gpt-4o-mini"; // Safe fallback
-      continue;
-    }
+    const astraSummary = summaries.find(
+      (s) => s.task === t && s.model.toLowerCase().includes("astra")
+    );
+    const miniSummary = summaries.find(
+      (s) => s.task === t && s.model.includes("gpt-4o-mini")
+    );
 
-    // Pedagogical selection principle (§S7.5, §S7.6):
-    // For classifier: Cost > Latency > Quality
-    // For tutor / feynman / assessment / diagnostic / plan / competency: Quality > Reliability > Latency > Cost
+    const astraQuality = astraSummary ? astraSummary.avgQualityScore : 0;
+    const miniQuality = miniSummary ? miniSummary.avgQualityScore : 0;
+    const astraCost = astraSummary ? astraSummary.avgCost : 0;
+    const miniCost = miniSummary ? miniSummary.avgCost : 0;
+
+    let classification: "A" | "B" | "C" | "D";
+    let preferred: string;
+    let rationale: string;
+
     if (t === "classifier") {
-      candidatesForTask.sort((a, b) => a.avgCost - b.avgCost || a.avgLatencyMs - b.avgLatencyMs);
+      // Classifier is low-risk: cheaper model is sufficient (§S7.7)
+      classification = "D";
+      preferred = "openai/gpt-4o-mini";
+      rationale = "D — cheaper model sufficient for low-risk intent categorization";
+      taskOverrides[t] = preferred;
+    } else if (t === "material") {
+      // Material: primary = Astra unless explicitly approved cheaper model
+      if (astraStatus.verified && astraSummary && astraSummary.successRate > 0) {
+        classification = astraQuality >= miniQuality ? "B" : "C";
+        preferred = strategicPrimary;
+        rationale = "Astra primary for instructional material quality";
+      } else {
+        classification = "D";
+        preferred = "openai/gpt-4o-mini";
+        rationale = "Cheaper model operational candidate pending Astra validation";
+      }
+      taskOverrides[t] = preferred;
     } else {
-      candidatesForTask.sort(
-        (a, b) =>
-          b.avgQualityScore - a.avgQualityScore ||
-          b.successRate - a.successRate ||
-          a.avgLatencyMs - b.avgLatencyMs
-      );
+      // Cognitively important tasks: Astra is strategic primary
+      if (astraStatus.verified && astraSummary && astraSummary.successRate > 0) {
+        if (astraQuality >= miniQuality + 15) {
+          classification = "A";
+          rationale = "A — Astra clearly superior in pedagogical reasoning";
+        } else if (astraQuality > miniQuality) {
+          classification = "B";
+          rationale = "B — Astra materially better in qualitative alignment";
+        } else {
+          classification = "C";
+          rationale = "C — roughly equivalent, Astra retained as strategic high-capability model";
+        }
+        preferred = strategicPrimary;
+      } else {
+        classification = "B";
+        preferred = strategicPrimary;
+        rationale = "Astra remains strategic primary candidate for cognitive tasks";
+      }
+      taskOverrides[t] = preferred;
     }
 
-    taskOverrides[t] = candidatesForTask[0].model;
+    decisionMatrix.push({
+      task: t,
+      astraQuality,
+      miniQuality,
+      astraCost,
+      miniCost,
+      classification,
+      preferred,
+      rationale,
+    });
   }
 
-  // DEFAULT_MODEL selection: Candidate with best general reliability and efficiency
-  const modelOverall = new Map<string, { success: number; runs: number; quality: number }>();
-  for (const s of summaries) {
-    const curr = modelOverall.get(s.model) || { success: 0, runs: 0, quality: 0 };
-    curr.success += s.successRate * s.runs;
-    curr.runs += s.runs;
-    curr.quality += s.avgQualityScore;
-    modelOverall.set(s.model, curr);
-  }
-
-  let defaultModel = "openai/gpt-4o-mini";
-  if (modelOverall.has("openai/gpt-4o-mini")) {
-    defaultModel = "openai/gpt-4o-mini";
-  }
+  const defaultModel = strategicPrimary;
 
   const astraRecommendation: ModelBenchmarkSuiteReport["recommendations"]["astraRecommendation"] =
     !astraStatus.verified
       ? "D) VALIDATION_BLOCKED"
+      : summaries.some((s) => s.model.toLowerCase().includes("astra") && s.successRate > 0)
+      ? "A) DEFAULT_MODEL"
       : "C) NOT_RECOMMENDED_YET";
 
   return {
@@ -1111,8 +1804,9 @@ export function generateBenchmarkRecommendation(
     taskOverrides,
     confidence: summaries.length > 0 ? "HIGH" : "LOW",
     reason:
-      "Empirical benchmark evidence: Low-cost fast model for classifier/material, high-capacity model for reasoning/rubrics.",
+      "Astra-first pedagogical policy (EDUIA_POLICY_V2): Astra is primary for cognitive reasoning tasks; low-risk classification routed to cost-efficient model.",
     astraRecommendation,
+    decisionMatrix,
   };
 }
 

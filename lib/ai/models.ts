@@ -43,12 +43,57 @@ export type AITask =
   | "ASSESSMENT"
   | "MATERIAL";
 
+export const COGNITIVE_TASKS: readonly string[] = [
+  "tutor",
+  "feynman",
+  "diagnostic",
+  "assessment",
+  "plan",
+  "competency",
+] as const;
+
+export const LOW_RISK_TASKS: readonly string[] = [
+  "classifier",
+  "material",
+] as const;
+
+export function isCognitiveTask(task: string): boolean {
+  return COGNITIVE_TASKS.includes(task.toLowerCase());
+}
+
+/**
+ * Resolves the strategic primary model (§S7.7).
+ * EDUIA_PRIMARY_MODEL represents the primary high-capability model intended for the Learning Engine (Astra).
+ * Backward-compatibility: if EDUIA_PRIMARY_MODEL is unset, falls back to DEFAULT_MODEL ONLY IF DEFAULT_MODEL is not gpt-4o-mini.
+ * (Ensures an old DEFAULT_MODEL=openai/gpt-4o-mini cannot silently usurp the strategic primary position).
+ */
+export function getPrimaryModel(): string | undefined {
+  const primary = process.env.EDUIA_PRIMARY_MODEL?.trim();
+  if (primary && primary !== "") {
+    return primary;
+  }
+  const legacyDefault = process.env.DEFAULT_MODEL?.trim();
+  if (legacyDefault && legacyDefault !== "" && legacyDefault !== "openai/gpt-4o-mini") {
+    return legacyDefault;
+  }
+  return undefined;
+}
+
+export function getDefaultModel(): string | undefined {
+  return getPrimaryModel();
+}
+
+export function isAstraModel(modelId?: string): boolean {
+  if (!modelId) return false;
+  return modelId.toLowerCase().includes("astra");
+}
+
 /**
  * Resolves the configured model ID for a specific pedagogical task.
- * Strategy (§S7.5):
+ * Strategy (§S7.5, §S7.7):
  * 1. Task-specific model environment variable (e.g. TUTOR_MODEL).
- * 2. If unconfigured or empty, fallback to DEFAULT_MODEL.
- * 3. If DEFAULT_MODEL is also missing, fail explicitly.
+ * 2. If unconfigured or empty, fallback to EDUIA_PRIMARY_MODEL (Astra primary).
+ * 3. If primary model is also missing, fail explicitly.
  * NEVER silently select an arbitrary random model.
  */
 export function getModel(task: ModelTask | string): string {
@@ -57,20 +102,26 @@ export function getModel(task: ModelTask | string): string {
     throw new Error(`Model not configured for task: ${task}`);
   }
   const taskModel = models[normalized];
-  const model =
-    taskModel && typeof taskModel === "string" && taskModel.trim() !== ""
-      ? taskModel.trim()
-      : process.env.DEFAULT_MODEL?.trim();
-
-  if (!model || model === "") {
-    throw new Error(`Model not configured for task: ${task}`);
+  if (taskModel && typeof taskModel === "string" && taskModel.trim() !== "") {
+    return taskModel.trim();
   }
-  return model;
-}
 
-export function getDefaultModel(): string | undefined {
-  const def = process.env.DEFAULT_MODEL;
-  return def && def.trim() !== "" ? def.trim() : undefined;
+  // Low-risk tasks may use policy-approved cheaper models if configured
+  if (normalized === "classifier") {
+    const cheapClassifier =
+      process.env.POLICY_APPROVED_CLASSIFIER_MODEL?.trim() || process.env.LOW_RISK_MODEL?.trim();
+    if (cheapClassifier) return cheapClassifier;
+  } else if (normalized === "material") {
+    const cheapMaterial = process.env.POLICY_APPROVED_MATERIAL_MODEL?.trim();
+    if (cheapMaterial) return cheapMaterial;
+  }
+
+  const primary = getPrimaryModel();
+  if (primary) {
+    return primary;
+  }
+
+  throw new Error(`Model not configured for task: ${task}`);
 }
 
 /**
@@ -129,6 +180,10 @@ export const KNOWN_MODEL_PRICING: Record<string, ModelPricing> = {
     completionTokenPricePerMillion: 0.28,
   },
   "openai/gpt-6-astra": {
+    promptTokenPricePerMillion: 10.0,
+    completionTokenPricePerMillion: 50.0,
+  },
+  "~openai/gpt-astra-latest": {
     promptTokenPricePerMillion: 10.0,
     completionTokenPricePerMillion: 50.0,
   },

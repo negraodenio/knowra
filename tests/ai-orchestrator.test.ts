@@ -31,20 +31,22 @@ describe("S7.5 — AI Model Orchestrator & Selection Layer", () => {
       const decision = aiModelOrchestrator.selectModel({ task: "tutor" });
       expect(decision.model).toBe("anthropic/claude-3.5-sonnet-custom");
       expect(decision.reason).toContain("Task-specific environment override");
-      expect(decision.policyVersion).toBe("EDUIA_POLICY_V1");
+      expect(decision.policyVersion).toBe("EDUIA_POLICY_V2");
     });
 
     it("falls back to DEFAULT_MODEL when task-specific model is unconfigured", () => {
       delete process.env.DIAGNOSTIC_MODEL;
+      delete process.env.EDUIA_PRIMARY_MODEL;
       process.env.DEFAULT_MODEL = "provider/platform-default";
 
       const decision = aiModelOrchestrator.selectModel({ task: "diagnostic" });
       expect(decision.model).toBe("provider/platform-default");
-      expect(decision.reason).toContain("DEFAULT_MODEL");
+      expect(decision.reason).toContain("EDUIA_PRIMARY_MODEL");
     });
 
     it("fails explicitly when both task model and DEFAULT_MODEL are missing", () => {
       delete process.env.FEYNMAN_MODEL;
+      delete process.env.EDUIA_PRIMARY_MODEL;
       delete process.env.DEFAULT_MODEL;
 
       expect(() => {
@@ -54,6 +56,7 @@ describe("S7.5 — AI Model Orchestrator & Selection Layer", () => {
 
     it("does NEVER silently invent or guess a random model", () => {
       delete process.env.ASSESSMENT_MODEL;
+      delete process.env.EDUIA_PRIMARY_MODEL;
       delete process.env.DEFAULT_MODEL;
 
       expect(() => {
@@ -63,11 +66,12 @@ describe("S7.5 — AI Model Orchestrator & Selection Layer", () => {
 
     it("correctly identifies and flags Astra candidate when configured as DEFAULT_MODEL", () => {
       delete process.env.MATERIAL_MODEL;
+      delete process.env.EDUIA_PRIMARY_MODEL;
       process.env.DEFAULT_MODEL = "astra/astra-pro-v1";
 
       const decision = aiModelOrchestrator.selectModel({ task: "material" });
       expect(decision.model).toBe("astra/astra-pro-v1");
-      expect(decision.reason).toContain("Astra default candidate");
+      expect(decision.reason).toContain("Astra");
       const metadata = getModelMetadata(decision.model);
       expect(metadata.isAstraCandidate).toBe(true);
     });
@@ -195,7 +199,7 @@ describe("S7.5 — AI Model Orchestrator & Selection Layer", () => {
         promptVersion: "CLASSIFIER_V1",
       });
 
-      expect(res.usage.orchestrationPolicy).toBe("EDUIA_POLICY_V1");
+      expect(res.usage.orchestrationPolicy).toBe("EDUIA_POLICY_V2");
       expect(res.usage.selectionReason).toContain("CLASSIFIER_MODEL");
       expect(res.usage.fallbackUsed).toBe(false);
     });

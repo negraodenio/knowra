@@ -89,6 +89,18 @@ export const KNOWN_MODEL_CATALOG: Record<string, ModelMetadata> = {
     speedTier: "SLOW",
     isAstraCandidate: true,
   },
+  "~openai/gpt-astra-latest": {
+    id: "~openai/gpt-astra-latest",
+    provider: "openai",
+    displayName: "GPT Astra Latest",
+    capabilities: ["TEXT_GENERATION", "STRUCTURED_OUTPUT", "REASONING", "LONG_CONTEXT"],
+    contextLimit: 1050000,
+    inputPricePerMillion: 10.0,
+    outputPricePerMillion: 50.0,
+    qualityTier: "HIGH",
+    speedTier: "SLOW",
+    isAstraCandidate: true,
+  },
 };
 
 /**
