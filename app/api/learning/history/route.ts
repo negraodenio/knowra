@@ -3,36 +3,28 @@ import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { learningStateService, UnauthorizedAccessError } from "@/lib/learning/state/learning-state-service";
 import { productEventService } from "@/lib/observability/product-events";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const body = await req.json();
-    const { goalId } = body;
+  const { searchParams } = new URL(req.url);
+  const goalId = searchParams.get("goalId") || undefined;
 
-    if (!goalId) {
-      return NextResponse.json({ error: "goalId is required." }, { status: 400 });
+  try {
+    if (goalId) {
+      await learningStateService.getGoal(userId, goalId);
     }
 
-    const result = await learningStateService.startDiagnostic(userId, goalId);
+    const events = productEventService.getUserEvents(userId, goalId);
+    const evidence = await learningStateService.getAllEvidence(userId, goalId);
 
-    productEventService.recordEvent(
-      userId,
-      "diagnostic_started",
-      {
-        sessionId: result.session.id,
-        goalId,
-        domainId: result.session.domainId,
-        itemCount: result.items.length,
-      },
-      goalId,
-      result.session.domainId
-    );
-
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({
+      events,
+      evidence,
+      totalEvidenceCount: evidence.length,
+    });
   } catch (err: unknown) {
     if (err instanceof UnauthorizedAccessError) {
       return NextResponse.json({ error: err.message }, { status: 403 });

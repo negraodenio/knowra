@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { recommendationService } from "@/lib/learning/state/recommendation-service";
 import { UnauthorizedAccessError } from "@/lib/learning/state/learning-state-service";
+import { productEventService } from "@/lib/observability/product-events";
 
 export async function POST(
   req: NextRequest,
@@ -16,6 +17,18 @@ export async function POST(
 
   try {
     const recommendation = await recommendationService.acceptRecommendation(userId, id);
+
+    productEventService.recordEvent(
+      userId,
+      "recommendation_accepted",
+      {
+        recommendationId: recommendation.id,
+        action: recommendation.action,
+        competencyId: recommendation.competencyId,
+      },
+      recommendation.learningGoalId
+    );
+
     return NextResponse.json({ recommendation });
   } catch (err: unknown) {
     if (err instanceof UnauthorizedAccessError) {

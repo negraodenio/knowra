@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { assessmentService } from "@/lib/learning/assessment/assessment-service";
+import { productEventService } from "@/lib/observability/product-events";
 import { z } from "zod";
 
 const StartAssessmentSchema = z.object({
-  userId: z.string().uuid(),
-  learningGoalId: z.string().uuid(),
+  userId: z.string().min(1).optional(),
+  learningGoalId: z.string().min(1),
   domainId: z.string(),
   assessmentType: z.enum(["BASELINE", "FINAL", "RETENTION_D7", "RETENTION_D30"]),
   blueprintId: z.string().optional(),
@@ -13,8 +15,18 @@ const StartAssessmentSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const authUserId = await getAuthenticatedUserId(req);
     const body = await req.json();
-    const parsed = StartAssessmentSchema.safeParse(body);
+
+    const effectiveUserId = body.userId || authUserId;
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const parsed = StartAssessmentSchema.safeParse({
+      ...body,
+      userId: effectiveUserId,
+    });
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -23,7 +35,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await assessmentService.startAssessmentSession(parsed.data);
+    const result = await assessmentService.startAssessmentSession({
+      ...parsed.data,
+      userId: effectiveUserId,
+    });
+
+    productEventService.recordEvent(
+      effectiveUserId,
+      "assessment_started",
+      {
+        sessionId: result.session.id,
+        assessmentType: parsed.data.assessmentType,
+        domainId: parsed.data.domainId,
+        itemCount: result.items.length,
+      },
+      parsed.data.learningGoalId,
+      parsed.data.domainId
+    );
+
     return NextResponse.json(result, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

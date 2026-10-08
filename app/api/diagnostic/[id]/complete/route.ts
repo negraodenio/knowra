@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { learningStateService, UnauthorizedAccessError } from "@/lib/learning/state/learning-state-service";
+import { productEventService } from "@/lib/observability/product-events";
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +16,22 @@ export async function POST(
 
   try {
     const report = await learningStateService.completeDiagnostic(userId, sessionId);
+
+    productEventService.recordEvent(
+      userId,
+      "diagnostic_completed",
+      {
+        sessionId,
+        goalId: report.learningGoalId,
+        domainId: report.domainId,
+        overallBaselineScore: report.overallBaselineScore,
+        relativeStrengths: report.relativeStrengths,
+        lowerBaselines: report.lowerBaselines,
+      },
+      report.learningGoalId,
+      report.domainId
+    );
+
     return NextResponse.json(report);
   } catch (err: unknown) {
     if (err instanceof UnauthorizedAccessError) {

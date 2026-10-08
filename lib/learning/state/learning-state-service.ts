@@ -679,6 +679,118 @@ export class LearningStateService {
       competencies: comps,
     };
   }
+
+  async getUserGoals(userId: string): Promise<LearningGoalEntity[]> {
+    const userGoals: LearningGoalEntity[] = [];
+    for (const goal of this.goals.values()) {
+      if (goal.userId === userId) {
+        userGoals.push(goal);
+      }
+    }
+    return userGoals.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getActiveGoal(
+    userId: string
+  ): Promise<{ goal: LearningGoalEntity; profile?: LearningProfileEntity } | null> {
+    const profile = this.profiles.get(userId);
+    if (profile?.activeGoalId) {
+      const goal = this.goals.get(profile.activeGoalId);
+      if (goal && goal.userId === userId) {
+        return { goal, profile };
+      }
+    }
+
+    const goals = await this.getUserGoals(userId);
+    if (goals.length > 0) {
+      const active = goals.find((g) => g.status === "ACTIVE") || goals[0];
+      return { goal: active, profile };
+    }
+
+    return null;
+  }
+
+  async setActiveGoal(userId: string, goalId: string): Promise<LearningProfileEntity> {
+    const goal = await this.getGoal(userId, goalId);
+    let profile = this.profiles.get(userId);
+    const now = new Date().toISOString();
+
+    if (profile) {
+      profile.activeGoalId = goal.id;
+      profile.domainId = goal.domainId;
+      profile.updatedAt = now;
+    } else {
+      profile = {
+        id: uuidv4(),
+        userId,
+        activeGoalId: goal.id,
+        domainId: goal.domainId,
+        mapVersionId: "1.0.0",
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.profiles.set(userId, profile);
+    }
+
+    await supabasePersistence.persistProfile(profile);
+    return profile;
+  }
+
+  async recordPracticeEvidence(
+    userId: string,
+    goalId: string,
+    competencyId: string,
+    score: number,
+    confidence = 0.85,
+    metadata: Record<string, unknown> = {}
+  ): Promise<EvidenceRecord> {
+    await this.getGoal(userId, goalId);
+
+    const stateKey = `${userId}:${goalId}:${competencyId}`;
+    const state = this.competencyStates.get(stateKey);
+    const now = new Date().toISOString();
+
+    const evidence: EvidenceRecord = {
+      id: uuidv4(),
+      learnerId: userId,
+      competencyId,
+      evidenceType: "EXERCISE",
+      result: score >= 70 ? "SUCCESS" : score >= 50 ? "PARTIAL" : "FAILURE",
+      score,
+      confidence,
+      source: "practice-activity",
+      timestamp: now,
+      metadata: { ...metadata, goalId },
+      version: 1,
+    };
+
+    this.evidenceRecords.push(evidence);
+    await supabasePersistence.persistEvidence({
+      id: evidence.id,
+      userId,
+      learningGoalId: goalId,
+      competencyId,
+      evidenceType: evidence.evidenceType,
+      result: evidence.result,
+      score: evidence.score,
+      confidence: evidence.confidence,
+      source: evidence.source,
+      timestamp: now,
+      metadata: { ...metadata, goalId },
+    });
+
+    if (state) {
+      state.currentScore = score;
+      state.evidenceCount += 1;
+      state.lastEvidenceAt = now;
+      state.updatedAt = now;
+      await supabasePersistence.persistCompetencyState(state);
+    }
+
+    return evidence;
+  }
 }
 
 export const learningStateService = new LearningStateService();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { assessmentService } from "@/lib/learning/assessment/assessment-service";
 
 export async function GET(
@@ -7,8 +8,9 @@ export async function GET(
 ) {
   try {
     const { goalId } = await params;
+    const authUserId = await getAuthenticatedUserId(req);
     const url = new URL(req.url);
-    const userId = url.searchParams.get("userId");
+    const userId = authUserId || url.searchParams.get("userId");
 
     if (!userId) {
       return NextResponse.json({ error: "userId parameter is required." }, { status: 400 });
