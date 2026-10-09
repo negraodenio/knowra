@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { KnowraHorizontalLogo } from "./brand-logo";
 
 interface LandingPageProps {
   onStartLearning: () => void;
@@ -60,13 +61,8 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
       <header className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#07090e]/85 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center justify-between">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <span className="w-5 h-5 rounded-[4px] bg-white text-[#07090e] font-mono font-bold text-xs flex items-center justify-center tracking-tighter">
-              K
-            </span>
-            <span className="font-semibold text-sm tracking-[0.2em] text-white">
-              KNOWRA
-            </span>
+          <Link href="/" className="flex items-center gap-3 group" aria-label="Knowra Home">
+            <KnowraHorizontalLogo theme="dark" className="h-6 w-auto" />
           </Link>
 
           {/* Minimal Navigation */}
@@ -803,9 +799,9 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
       <footer className="bg-[#07090e] py-12 text-xs text-slate-500 font-mono">
         <div className="max-w-6xl mx-auto px-6 sm:px-8">
           <div className="flex flex-col sm:flex-row items-baseline justify-between gap-6 pb-8 border-b border-white/[0.06]">
-            <div>
-              <span className="font-semibold text-white tracking-widest uppercase">KNOWRA</span>
-              <span className="ml-2 text-slate-500">— ADAPTIVE LEARNING ENGINE</span>
+            <div className="flex items-center gap-3">
+              <KnowraHorizontalLogo theme="dark" className="h-5 w-auto" />
+              <span className="text-slate-500">— ADAPTIVE LEARNING ENGINE</span>
             </div>
 
             <div className="flex items-center gap-6">

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLearner } from "../lib/use-learner";
+import { KnowraHorizontalLogo } from "./brand-logo";
 
 export function LearnerNav() {
   const pathname = usePathname();
@@ -38,18 +39,8 @@ export function LearnerNav() {
         <div className="flex items-center justify-between h-16">
           {/* Logo & Thesis */}
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition-transform">
-                <span className="text-white font-bold text-sm">K</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg tracking-tight text-white group-hover:text-sky-400 transition-colors">
-                  KNOWRA
-                </span>
-                <span className="text-[10px] text-slate-400 -mt-1 hidden sm:inline tracking-tight">
-                  Adaptive Learning Engine
-                </span>
-              </div>
+            <Link href="/" className="flex items-center gap-2 group" aria-label="Knowra Home">
+              <KnowraHorizontalLogo theme="dark" className="h-6 w-auto" />
             </Link>
 
             {/* Active Goal Selector (Only when authenticated) */}

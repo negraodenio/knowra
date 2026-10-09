@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/db/supabase-browser";
+import { KnowraHorizontalLogo } from "./brand-logo";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -146,13 +147,8 @@ export function AuthModal({
 
         {/* Header */}
         <div className="space-y-2 text-center">
-          <div className="inline-flex items-center gap-2 mb-1">
-            <span className="w-5 h-5 rounded-[4px] bg-white text-[#07090e] font-mono font-bold text-xs flex items-center justify-center">
-              K
-            </span>
-            <span className="font-semibold text-xs tracking-[0.2em] text-white">
-              KNOWRA
-            </span>
+          <div className="flex justify-center mb-1">
+            <KnowraHorizontalLogo theme="dark" className="h-6 w-auto" />
           </div>
           <h2 id="auth-modal-title" className="text-xl sm:text-2xl font-light text-white tracking-tight">
             {mode === "SIGN_UP" ? "Start Learning." : "Sign In."}

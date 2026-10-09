@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+  <!-- KNOWRA Candidate 03 — Monolithic Gateway K (Monochrome Pure Black) -->
+  <path
+    d="M 0 0 L 38 0 L 38 50 L 52 64 L 38 78 L 38 128 L 0 128 Z"
+    fill="#000000"
+  />
+  <path
+    d="M 89 0 L 128 0 L 72 64 L 128 128 L 89 128 L 45 84 L 48 78 L 62 64 L 48 50 L 45 44 Z"
+    fill="#000000"
+  />
+</svg>
