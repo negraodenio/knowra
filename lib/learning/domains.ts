@@ -49,8 +49,10 @@ export const CURATED_DOMAINS: Record<string, Domain> = {
   },
 };
 
+import { dynamicCurriculumRegistry } from "./curriculum/dynamic-registry";
+
 export function getDomain(domainId: string): Domain | undefined {
-  return CURATED_DOMAINS[domainId];
+  return CURATED_DOMAINS[domainId] || dynamicCurriculumRegistry.getDomain(domainId);
 }
 
 export function getAllCuratedDomains(): Domain[] {

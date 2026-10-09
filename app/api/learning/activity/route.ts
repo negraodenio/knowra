@@ -27,7 +27,12 @@ export async function GET(req: NextRequest) {
     // Validate goal ownership
     await learningStateService.getGoal(userId, goalId);
 
-    const comp = getCompetencyById(competencyId);
+    let comp = getCompetencyById(competencyId);
+    if (!comp) {
+      const { dynamicCurriculumRegistry } = await import("@/lib/learning/curriculum/dynamic-registry");
+      comp = await dynamicCurriculumRegistry.ensureCompetencyLoaded(competencyId);
+    }
+
     if (!comp) {
       return NextResponse.json(
         { error: `Competency '${competencyId}' not found.` },
@@ -42,20 +47,23 @@ export async function GET(req: NextRequest) {
       domainId: comp.domainId,
       title: comp.title,
       category: comp.category,
-      objective: `Demonstrate mastery in ${comp.title}`,
+      objective: `Demonstrar domínio em ${comp.title}`,
       instruction: comp.description,
       keyConcepts: [
-        `Understand core principles of ${comp.title}`,
-        "Apply systematic problem-solving methods",
-        "Avoid common edge-case errors",
+        `Fundamentos de ${comp.title}`,
+        "Aplicação prática e raciocínio crítico",
+        "Resolução de problemas conceituais",
       ],
       practice: {
         id: `gen-prac-${comp.id}`,
-        prompt: `Explain and demonstrate the fundamental rules of ${comp.title}.`,
+        prompt:
+          action === "FEYNMAN"
+            ? `Explique com suas próprias palavras os conceitos essenciais de "${comp.title}". Use uma analogia simples e evite jargões técnicos para demonstrar clareza mental.`
+            : `Explique e analise os fundamentos e a aplicação prática de "${comp.title}".`,
         itemType: "TEXT",
-        correctAnswer: "A comprehensive explanation demonstrating understanding",
-        explanation: "Mastery requires clear conceptual clarity and procedural precision.",
-        hints: ["Review the competency description."],
+        correctAnswer: "Uma explicação abrangente demonstrando clareza conceitual e articulação clara.",
+        explanation: "O domínio real exige a capacidade de explicar os mecanismos causais sem depender de decoreba.",
+        hints: [`Objetivo central: ${comp.description}`, "Tente usar um exemplo prático do mundo real."],
       },
     };
 
@@ -73,8 +81,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ activity, action });
   } catch (err: unknown) {
-    if (err instanceof UnauthorizedAccessError) {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+    if (
+      err instanceof UnauthorizedAccessError ||
+      (err as { name?: string })?.name === "UnauthorizedAccessError" ||
+      (err as { message?: string })?.message?.includes("Access denied")
+    ) {
+      return NextResponse.json({ error: (err as Error).message }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 400 });

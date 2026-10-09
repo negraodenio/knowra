@@ -1,5 +1,7 @@
 import { randomUUID as uuidv4 } from "crypto";
 import { getDomain } from "../domains";
+import { dynamicCurriculumRegistry } from "../curriculum/dynamic-registry";
+import { getCuratedCompetenciesByDomain } from "../curriculum";
 import { normalizeObjective, NormalizeObjectiveInput } from "../objective-normalizer";
 import { getDiagnosticItemsByDomain, getDiagnosticItemById } from "../diagnostic/curriculum";
 import {
@@ -9,7 +11,7 @@ import {
   DiagnosticCompletionReport,
 } from "../diagnostic/types";
 import { evaluateDiagnosticItem, aggregateDiagnosticReport } from "../diagnostic/evaluator";
-import { EvidenceRecord, getMasteryState, MasteryState } from "../types";
+import { EvidenceRecord, getMasteryState, MasteryState, CompetencyCategory } from "../types";
 import { supabasePersistence, isLiveDatabaseConfigured } from "@/lib/db/supabase-persistence";
 import { createAdminClient } from "@/lib/db/supabase-admin";
 
@@ -62,6 +64,7 @@ export interface CurrentLearningStateView {
   userId: string;
   goalId: string;
   domainId: string;
+  domainName?: string;
   mapVersion: string;
   overallBaselineScore: number;
   diagnosticCompleted: boolean;
@@ -74,6 +77,15 @@ export interface CurrentLearningStateView {
     confidenceScore: number;
     evidenceCount: number;
     lastEvidenceAt: string;
+  }>;
+  domainCompetencies?: Array<{
+    id: string;
+    domainId: string;
+    title: string;
+    description: string;
+    category: CompetencyCategory;
+    difficulty: number;
+    prerequisites: string[];
   }>;
 }
 
@@ -148,8 +160,8 @@ export class LearningStateService {
    * Retrieves a goal ensuring strict user ownership (§36)
    */
   async getGoal(userId: string, goalId: string): Promise<LearningGoalEntity> {
-    let goal = this.goals.get(goalId);
-    if (!goal && isLiveDatabaseConfigured()) {
+    let goal: LearningGoalEntity | undefined;
+    if (isLiveDatabaseConfigured()) {
       try {
         const client = createAdminClient();
         const { data, error } = await client
@@ -177,10 +189,16 @@ export class LearningStateService {
       }
     }
     if (!goal) {
+      goal = this.goals.get(goalId);
+    }
+    if (!goal) {
       throw new Error(`Goal with ID '${goalId}' not found.`);
     }
     if (goal.userId !== userId) {
       throw new UnauthorizedAccessError("Access denied: You do not own this learning goal.");
+    }
+    if (!getDomain(goal.domainId)) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(goal.domainId);
     }
     return goal;
   }
@@ -232,7 +250,33 @@ export class LearningStateService {
     itemId: string,
     userAnswer: string
   ): Promise<DiagnosticResponse> {
-    const session = this.sessions.get(sessionId);
+    let session = this.sessions.get(sessionId);
+    if (!session && isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data } = await client
+          .from("diagnostic_sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .maybeSingle();
+        if (data) {
+          session = {
+            id: data.id,
+            userId: data.user_id,
+            learningGoalId: data.learning_goal_id,
+            domainId: data.domain_id,
+            mapVersion: data.map_version,
+            status: data.status,
+            startedAt: data.started_at,
+            completedAt: data.completed_at,
+            itemIds: data.item_ids || [],
+          };
+          this.sessions.set(sessionId, session);
+        }
+      } catch {
+        // Fallback
+      }
+    }
     if (!session) {
       throw new Error(`Diagnostic session '${sessionId}' not found.`);
     }
@@ -241,6 +285,10 @@ export class LearningStateService {
     }
     if (session.status !== "IN_PROGRESS") {
       throw new Error(`Cannot submit answer. Session is ${session.status}.`);
+    }
+
+    if (!getDomain(session.domainId)) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(session.domainId);
     }
 
     const item = getDiagnosticItemById(itemId);
@@ -286,7 +334,33 @@ export class LearningStateService {
     userId: string,
     sessionId: string
   ): Promise<DiagnosticCompletionReport> {
-    const session = this.sessions.get(sessionId);
+    let session = this.sessions.get(sessionId);
+    if (!session && isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data } = await client
+          .from("diagnostic_sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .maybeSingle();
+        if (data) {
+          session = {
+            id: data.id,
+            userId: data.user_id,
+            learningGoalId: data.learning_goal_id,
+            domainId: data.domain_id,
+            mapVersion: data.map_version,
+            status: data.status,
+            startedAt: data.started_at,
+            completedAt: data.completed_at,
+            itemIds: data.item_ids || [],
+          };
+          this.sessions.set(sessionId, session);
+        }
+      } catch {
+        // Fallback
+      }
+    }
     if (!session) {
       throw new Error(`Diagnostic session '${sessionId}' not found.`);
     }
@@ -297,8 +371,37 @@ export class LearningStateService {
       throw new Error("Diagnostic session has already been completed.");
     }
 
+    if (!getDomain(session.domainId)) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(session.domainId);
+    }
+
     const items = getDiagnosticItemsByDomain(session.domainId);
-    const responses = this.responses.get(sessionId) || [];
+    let responses = this.responses.get(sessionId) || [];
+    if (responses.length === 0 && isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data } = await client
+          .from("diagnostic_responses")
+          .select("*")
+          .eq("session_id", sessionId);
+        if (data && data.length > 0) {
+          responses = data.map((r) => ({
+            id: r.id,
+            sessionId: r.session_id,
+            userId: r.user_id,
+            itemId: r.item_id,
+            competencyId: r.competency_id,
+            answer: r.answer,
+            isCorrect: r.is_correct,
+            score: r.score,
+            submittedAt: r.created_at || new Date().toISOString(),
+          }));
+          this.responses.set(sessionId, responses);
+        }
+      } catch {
+        // Fallback
+      }
+    }
 
     // Ensure all required items have answers before completing (§23)
     if (responses.length < items.length) {
@@ -742,9 +845,15 @@ export class LearningStateService {
       (s) => s.userId === userId && s.learningGoalId === goalId && s.status === "COMPLETED"
     );
 
+    const domainComps = getCuratedCompetenciesByDomain(goal.domainId);
+    const domainCompIds = new Set(domainComps.map((c) => c.id));
+
     const comps: CurrentLearningStateView["competencies"] = [];
     for (const [key, state] of this.competencyStates.entries()) {
-      if (key.startsWith(`${userId}:${goalId}:`)) {
+      if (
+        key.startsWith(`${userId}:${goalId}:`) &&
+        (domainCompIds.size === 0 || domainCompIds.has(state.competencyId))
+      ) {
         comps.push({
           competencyId: state.competencyId,
           baselineScore: state.baselineScore,
@@ -758,14 +867,26 @@ export class LearningStateService {
       }
     }
 
+    const domain = getDomain(goal.domainId);
+
     return {
       userId,
       goalId,
       domainId: goal.domainId,
+      domainName: domain?.name || goal.title,
       mapVersion: session?.mapVersion || "1.0.0",
       overallBaselineScore: session?.overallBaselineScore || 0,
       diagnosticCompleted: Boolean(session),
       competencies: comps,
+      domainCompetencies: domainComps.map((c) => ({
+        id: c.id,
+        domainId: c.domainId,
+        title: c.title,
+        description: c.description,
+        category: c.category,
+        difficulty: c.difficulty,
+        prerequisites: c.prerequisites,
+      })),
     };
   }
 
@@ -781,19 +902,17 @@ export class LearningStateService {
 
         if (data && !error) {
           for (const row of data) {
-            if (!this.goals.has(row.id)) {
-              this.goals.set(row.id, {
-                id: row.id,
-                userId: row.user_id,
-                domainId: row.domain_id,
-                title: row.raw_objective || row.target_outcome || "Goal",
-                normalizedObjective: typeof row.normalized_objective === "string" ? row.normalized_objective : JSON.stringify(row.normalized_objective),
-                targetOutcome: row.target_outcome,
-                status: row.status,
-                createdAt: row.created_at,
-                updatedAt: row.updated_at,
-              });
-            }
+            this.goals.set(row.id, {
+              id: row.id,
+              userId: row.user_id,
+              domainId: row.domain_id,
+              title: row.raw_objective || row.target_outcome || "Goal",
+              normalizedObjective: typeof row.normalized_objective === "string" ? row.normalized_objective : JSON.stringify(row.normalized_objective),
+              targetOutcome: row.target_outcome,
+              status: row.status,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            });
           }
         }
       } catch {
@@ -815,11 +934,43 @@ export class LearningStateService {
   async getActiveGoal(
     userId: string
   ): Promise<{ goal: LearningGoalEntity; profile?: LearningProfileEntity } | null> {
-    const profile = this.profiles.get(userId);
+    let profile = this.profiles.get(userId);
+    if (isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        const { data } = await client
+          .from("learning_profiles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (data) {
+          profile = {
+            id: data.id,
+            userId: data.user_id,
+            activeGoalId: data.active_goal_id,
+            domainId: data.domain_id,
+            mapVersionId: data.map_version_id || "1.0.0",
+            selfReportedLevel: data.self_reported_level,
+            targetOutcome: data.target_outcome,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+          };
+          this.profiles.set(userId, profile);
+        }
+      } catch {
+        // Fallback to in-memory profile
+      }
+    }
+
     if (profile?.activeGoalId) {
-      const goal = this.goals.get(profile.activeGoalId);
-      if (goal && goal.userId === userId) {
-        return { goal, profile };
+      try {
+        const goal = await this.getGoal(userId, profile.activeGoalId);
+        if (goal) {
+          return { goal, profile };
+        }
+      } catch {
+        // fallback to list
       }
     }
 

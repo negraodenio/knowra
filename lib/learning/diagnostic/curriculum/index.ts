@@ -13,6 +13,8 @@ export const ALL_DIAGNOSTIC_ITEMS: DiagnosticItem[] = [
   ...EXCEL_DIAGNOSTIC_ITEMS,
 ];
 
+import { dynamicCurriculumRegistry } from "@/lib/learning/curriculum/dynamic-registry";
+
 export function getDiagnosticItemsByDomain(domainId: string): DiagnosticItem[] {
   switch (domainId) {
     case "python-junior":
@@ -22,10 +24,13 @@ export function getDiagnosticItemsByDomain(domainId: string): DiagnosticItem[] {
     case "excel-pro":
       return EXCEL_DIAGNOSTIC_ITEMS;
     default:
-      return [];
+      return dynamicCurriculumRegistry.getDiagnosticItemsByDomain(domainId);
   }
 }
 
 export function getDiagnosticItemById(itemId: string): DiagnosticItem | undefined {
-  return ALL_DIAGNOSTIC_ITEMS.find((item) => item.id === itemId);
+  return (
+    ALL_DIAGNOSTIC_ITEMS.find((item) => item.id === itemId) ||
+    dynamicCurriculumRegistry.getDiagnosticItemById(itemId)
+  );
 }

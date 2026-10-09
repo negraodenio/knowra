@@ -2,6 +2,7 @@ import { Competency } from "./types";
 import { PrerequisiteGraph } from "./prerequisite-graph";
 import { getCuratedCompetenciesByDomain } from "./curriculum";
 import { getDomain } from "./domains";
+import { dynamicCurriculumRegistry } from "./curriculum/dynamic-registry";
 
 export interface CompetencyMapVersion {
   domainId: string;
@@ -57,7 +58,18 @@ export class CompetencyMapService {
   }
 
   getMap(domainId: string, version: string = "1.0.0"): CompetencyMapVersion | undefined {
-    return this.mapRegistry.get(`${domainId}@${version}`);
+    let map =
+      this.mapRegistry.get(`${domainId}@${version}`) ||
+      dynamicCurriculumRegistry.getMapVersion(domainId, version);
+
+    if (!map) {
+      const comps = dynamicCurriculumRegistry.getCompetenciesByDomain(domainId);
+      if (comps.length > 0) {
+        dynamicCurriculumRegistry.registerCompetencies(domainId, comps);
+        map = dynamicCurriculumRegistry.getMapVersion(domainId, version);
+      }
+    }
+    return map;
   }
 
   getGraph(domainId: string, version: string = "1.0.0"): PrerequisiteGraph | undefined {

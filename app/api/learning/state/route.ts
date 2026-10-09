@@ -19,8 +19,12 @@ export async function GET(req: NextRequest) {
     const state = await learningStateService.getCurrentLearningState(userId, goalId);
     return NextResponse.json(state);
   } catch (err: unknown) {
-    if (err instanceof UnauthorizedAccessError) {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+    if (
+      err instanceof UnauthorizedAccessError ||
+      (err as { name?: string })?.name === "UnauthorizedAccessError" ||
+      (err as { message?: string })?.message?.includes("Access denied")
+    ) {
+      return NextResponse.json({ error: (err as Error).message }, { status: 403 });
     }
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 404 });

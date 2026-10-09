@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { LearnerNav } from "../components/learner-nav";
 import { useLearner } from "../lib/use-learner";
@@ -25,6 +25,7 @@ interface DiagnosticReport {
 }
 
 function DiagnosticContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const goalIdParam = searchParams.get("goalId");
 
@@ -42,7 +43,7 @@ function DiagnosticContent() {
   const [report, setReport] = useState<DiagnosticReport | null>(null);
 
   const startDiagnosticSession = useCallback(async () => {
-    if (!effectiveGoalId) return;
+    if (!effectiveGoalId || !userId) return;
     setLoading(true);
     setError(null);
     try {
@@ -73,10 +74,10 @@ function DiagnosticContent() {
   }, [effectiveGoalId, userId]);
 
   useEffect(() => {
-    if (effectiveGoalId && !sessionId && !report) {
+    if (effectiveGoalId && !sessionId && !report && userId) {
       startDiagnosticSession();
     }
-  }, [effectiveGoalId, sessionId, report, startDiagnosticSession]);
+  }, [effectiveGoalId, sessionId, report, userId, startDiagnosticSession]);
 
   const handleSelectAnswer = (ans: string) => {
     const currentItem = items[currentIndex];
@@ -85,7 +86,7 @@ function DiagnosticContent() {
   };
 
   const handleNextOrFinish = async () => {
-    if (!sessionId) return;
+    if (!sessionId || !userId) return;
     const currentItem = items[currentIndex];
     const currentAnswer = answers[currentItem.id] || "";
 
@@ -133,16 +134,16 @@ function DiagnosticContent() {
 
   if (!effectiveGoalId) {
     return (
-      <div className="py-20 text-center space-y-4">
-        <h2 className="text-xl font-bold text-white">No Learning Goal Selected</h2>
-        <p className="text-sm text-slate-400">
-          Create a goal first so Knowra can calibrate your personalized diagnostic.
+      <div className="py-24 text-center space-y-4 max-w-md mx-auto">
+        <h2 className="text-xl font-light text-white font-serif">No Learning Goal Selected</h2>
+        <p className="text-xs sm:text-sm text-slate-400">
+          Create or select a learning path first to begin your diagnostic.
         </p>
         <Link
           href="/"
-          className="inline-block px-5 py-2.5 rounded-xl font-semibold text-xs bg-sky-500 text-white"
+          className="inline-block px-5 py-2.5 rounded-xl font-medium text-xs bg-white text-[#07090e] hover:bg-slate-200 transition-colors"
         >
-          Create Goal →
+          Go to Home →
         </Link>
       </div>
     );
@@ -150,234 +151,224 @@ function DiagnosticContent() {
 
   const currentItem = items[currentIndex];
   const progressPercent = items.length > 0 ? ((currentIndex + 1) / items.length) * 100 : 0;
+  const currentAnswer = currentItem ? answers[currentItem.id] : "";
 
   return (
-    <div className="max-w-3xl mx-auto py-8">
-      {/* Starting Diagnostic Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-            Diagnostic Assessment
-          </span>
-          <span className="text-slate-600">•</span>
-          <span className="text-xs text-slate-400">Calibrating Initial Knowledge State</span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Find Your Starting Point
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Answer each question to the best of your ability. Knowra measures baseline competency without penalizing mistakes.
-        </p>
-      </div>
-
+    <div className="max-w-xl mx-auto py-10 sm:py-16">
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-400 space-y-3">
-          <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm">Preparing diagnostic questions for your domain...</p>
+        <div className="py-24 flex flex-col items-center justify-center text-slate-400 space-y-3">
+          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-xs font-mono uppercase tracking-wider text-slate-400">
+            Calibrating diagnostic questions...
+          </p>
         </div>
       ) : error ? (
-        <div className="p-6 rounded-2xl border border-rose-800 bg-rose-950/20 text-rose-300 space-y-4">
+        <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-300 space-y-4">
           <div className="font-semibold text-sm">Diagnostic Error</div>
-          <p className="text-xs">{error}</p>
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Link
-              href="/"
-              className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold transition-colors"
-            >
-              Select / Create Goal →
-            </Link>
+          <p className="text-xs leading-relaxed">{error}</p>
+          <div className="flex items-center gap-3 pt-2">
             <button
               onClick={() => startDiagnosticSession()}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+              className="px-4 py-2 rounded-xl bg-white text-[#07090e] text-xs font-medium hover:bg-slate-200 transition-colors"
             >
-              Retry Diagnostic
+              Retry
             </button>
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              Return Home
+            </Link>
           </div>
         </div>
       ) : report ? (
         /* ==========================================================
-           DIAGNOSTIC REPORT SUMMARY (§9)
+           POST-DIAGNOSTIC SUMMARY: CALM, TRUTHFUL, ONE DOMINANT CTA
            ========================================================== */
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="text-center space-y-2 pb-6 border-b border-slate-800">
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              ✓ Diagnostic Complete
-            </span>
-            <h2 className="text-2xl font-bold text-white tracking-tight">
+        <div className="space-y-8 animate-fade-in">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono tracking-widest uppercase bg-white/[0.04] text-emerald-400 border border-white/[0.08]">
+              <span>✓ Baseline Calibrated</span>
+            </div>
+            <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white font-serif">
               Your Starting Point
-            </h2>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Your baseline scores are now permanently established in the Learning Engine. Subsequent practice will measure progress against this baseline.
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
+              Your initial baseline is calibrated. The Learning Engine has prepared your first lesson based on prerequisite requirements.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-around p-6 rounded-xl border border-slate-800 bg-slate-950 gap-4">
-            <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                Baseline Score
+          {/* Baseline metric */}
+          <div className="p-6 rounded-2xl border border-white/[0.08] bg-[#0c1018] flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">
+                Overall Baseline
               </div>
-              <div className="text-4xl font-extrabold font-mono text-white mt-1">
+              <div className="text-3xl font-light font-mono text-white mt-1">
                 {report.overallBaselineScore.toFixed(0)}%
               </div>
             </div>
-
-            <div className="h-10 w-px bg-slate-800 hidden sm:block" />
-
-            <div className="text-center">
-              <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                Status
-              </div>
-              <div className="text-sm font-semibold text-emerald-400 mt-1">
-                Starting Point Established
-              </div>
+            <div className="text-right text-xs text-slate-400">
+              <span className="text-emerald-400 font-medium">Ready to learn</span>
+              <div className="text-[11px] text-slate-500 font-mono mt-0.5">Engine calibrated</div>
             </div>
           </div>
 
-          {/* Relative Strengths */}
-          {report.relativeStrengths.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                Relative Strengths
-              </div>
-              <ul className="space-y-1.5">
-                {report.relativeStrengths.map((str, i) => (
-                  <li
-                    key={i}
-                    className="text-xs text-slate-300 flex items-start gap-2 bg-emerald-950/20 border border-emerald-900/30 p-2.5 rounded-lg"
-                  >
-                    <span className="text-emerald-400">✓</span>
-                    <span>{str}</span>
-                  </li>
-                ))}
-              </ul>
+          {/* Strengths & focus areas preview */}
+          {(report.relativeStrengths.length > 0 || report.lowerBaselines.length > 0) && (
+            <div className="space-y-3 text-xs">
+              {report.relativeStrengths.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400">
+                    Recognized Strengths
+                  </div>
+                  <div className="space-y-1">
+                    {report.relativeStrengths.slice(0, 3).map((s, idx) => (
+                      <div key={idx} className="text-slate-300 flex items-center gap-2">
+                        <span className="text-emerald-400 text-xs">✓</span>
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {report.lowerBaselines.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-amber-400">
+                    Target Focus Areas
+                  </div>
+                  <div className="space-y-1">
+                    {report.lowerBaselines.slice(0, 3).map((b, idx) => (
+                      <div key={idx} className="text-slate-300 flex items-center gap-2">
+                        <span className="text-amber-400 text-xs">•</span>
+                        <span>{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Lower Baselines / Areas to Strengthen */}
-          {report.lowerBaselines.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                Recommended Focus Areas
-              </div>
-              <ul className="space-y-1.5">
-                {report.lowerBaselines.map((low, i) => (
-                  <li
-                    key={i}
-                    className="text-xs text-slate-300 flex items-start gap-2 bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg"
-                  >
-                    <span className="text-amber-400">⚡</span>
-                    <span>{low}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Single primary action CTA */}
+          <div className="pt-4 flex flex-col sm:flex-row items-center gap-4">
+            <button
+              id="diagnostic-start-lesson-button"
+              onClick={() => router.push(`/activity?goalId=${report.learningGoalId}`)}
+              className="w-full sm:flex-1 py-3.5 px-6 rounded-xl font-medium text-xs sm:text-sm text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide shadow-lg flex items-center justify-center gap-2"
+            >
+              Start my first lesson →
+            </button>
 
-          {/* Next Steps CTAs */}
-          <div className="pt-4 flex flex-col sm:flex-row gap-3">
             <Link
-              href="/"
-              className="flex-1 py-3 text-center rounded-xl font-bold text-xs bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white shadow-lg shadow-sky-500/25 transition-all"
+              href={`/map?goalId=${report.learningGoalId}`}
+              className="text-xs text-slate-400 hover:text-white px-3 py-2 transition-colors whitespace-nowrap"
             >
-              See Your Next Best Action →
-            </Link>
-            <Link
-              href="/map"
-              className="flex-1 py-3 text-center rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 transition-colors"
-            >
-              Go to Learning Map &amp; Start Learning →
+              View Learning Map
             </Link>
           </div>
         </div>
       ) : currentItem ? (
         /* ==========================================================
-           DIAGNOSTIC QUESTION CARD (§9)
+           DISTRACTION-FREE DIAGNOSTIC QUESTION
            ========================================================== */
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
-          {/* Progress Bar */}
+        <div className="space-y-8 animate-fade-in">
+          {/* Subtle Progress Indicator */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
               <span>
                 Question {currentIndex + 1} of {items.length}
               </span>
-              <span className="font-mono">{progressPercent.toFixed(0)}% Complete</span>
+              <span>{progressPercent.toFixed(0)}%</span>
             </div>
-            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-0.5 w-full bg-white/[0.08] rounded-full overflow-hidden">
               <div
-                className="h-full bg-sky-500 transition-all duration-300"
+                className="h-full bg-white transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
 
           {/* Question Prompt */}
-          <div className="space-y-2">
-            <div className="text-[11px] font-semibold text-sky-400 uppercase tracking-wider">
-              Topic: {currentItem.competencyId.replace(/^[a-z]+-/, "").replace(/-/g, " ")}
+          <div className="space-y-3 pt-2">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+              {currentItem.competencyId.replace(/^[a-z]+-/, "").replace(/-/g, " ")}
             </div>
-            <div className="text-base sm:text-lg font-semibold text-white whitespace-pre-wrap leading-relaxed">
+            <h2 className="text-lg sm:text-xl font-light text-white leading-relaxed">
               {currentItem.prompt}
-            </div>
+            </h2>
           </div>
 
-          {/* Answer Interaction */}
+          {/* Answer Controls */}
           <div className="space-y-2.5 pt-2">
             {currentItem.options ? (
               <div className="space-y-2">
                 {currentItem.options.map((opt, optIdx) => {
-                  const isSelected = answers[currentItem.id] === opt;
+                  const isSelected = currentAnswer === opt;
+                  const letter = String.fromCharCode(65 + optIdx);
                   return (
                     <button
                       key={optIdx}
                       type="button"
                       onClick={() => handleSelectAnswer(opt)}
-                      className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm font-medium transition-all flex items-center justify-between ${
+                      className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-3.5 ${
                         isSelected
-                          ? "border-sky-500 bg-sky-500/10 text-sky-300 ring-1 ring-sky-500"
-                          : "border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/60"
+                          ? "border-white bg-white/[0.08] text-white shadow-sm"
+                          : "border-white/[0.06] bg-[#0c1018] text-slate-300 hover:border-white/20 hover:text-white"
                       }`}
                     >
-                      <span>{opt}</span>
-                      {isSelected && <span className="text-sky-400 font-bold">✓</span>}
+                      <span
+                        className={`text-xs font-mono px-2 py-0.5 rounded ${
+                          isSelected
+                            ? "bg-white text-[#07090e] font-semibold"
+                            : "bg-white/[0.04] text-slate-500"
+                        }`}
+                      >
+                        {letter}
+                      </span>
+                      <span className="text-xs sm:text-sm font-normal leading-relaxed flex-1">
+                        {opt}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <div>
-                <input
-                  type="text"
-                  placeholder="Enter your answer..."
-                  value={answers[currentItem.id] || ""}
-                  onChange={(e) => handleSelectAnswer(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
-                />
-              </div>
+              <input
+                type="text"
+                placeholder="Type your answer here..."
+                value={currentAnswer}
+                onChange={(e) => handleSelectAnswer(e.target.value)}
+                className="w-full bg-[#0c1018] border border-white/[0.08] focus:border-white/30 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
+              />
             )}
           </div>
 
-          {/* Bottom Action */}
-          <div className="pt-4 flex items-center justify-between border-t border-slate-800/80">
-            <button
-              type="button"
-              disabled={currentIndex === 0}
-              onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-              className="text-xs font-medium text-slate-500 hover:text-slate-300 disabled:opacity-30"
-            >
-              ← Previous
-            </button>
+          {/* Advance or Submit Action */}
+          <div className="pt-4 flex items-center justify-between">
+            {currentIndex > 0 ? (
+              <button
+                type="button"
+                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                ← Previous
+              </button>
+            ) : <div />}
 
             <button
+              id="diagnostic-next-button"
               type="button"
-              disabled={submitting || !answers[currentItem.id]}
+              disabled={submitting || !currentAnswer}
               onClick={handleNextOrFinish}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 disabled:opacity-40 transition-colors"
+              className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-[#07090e] bg-white hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
             >
               {submitting
-                ? "Submitting Diagnostic..."
+                ? "Calibrating..."
                 : currentIndex === items.length - 1
-                ? "Submit & Calculate Baseline"
-                : "Next Question →"}
+                ? "Complete diagnostic →"
+                : "Next question →"}
             </button>
           </div>
         </div>
@@ -388,10 +379,16 @@ function DiagnosticContent() {
 
 export default function DiagnosticPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#07090e] text-[#f6f3eb] flex flex-col font-sans selection:bg-white/20 selection:text-white antialiased">
       <LearnerNav />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Suspense fallback={<div className="text-slate-400 text-xs">Loading diagnostic...</div>}>
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col justify-center">
+        <Suspense
+          fallback={
+            <div className="py-24 text-center text-xs font-mono text-slate-500 uppercase tracking-wider">
+              Loading diagnostic...
+            </div>
+          }
+        >
           <DiagnosticContent />
         </Suspense>
       </main>

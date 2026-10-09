@@ -3,6 +3,7 @@ import { learningStateService, UnauthorizedAccessError } from "./learning-state-
 import { masteryService } from "./mastery-service";
 import { competencyMapService } from "../competency-map";
 import { getCuratedCompetenciesByDomain } from "../curriculum";
+import { dynamicCurriculumRegistry } from "../curriculum/dynamic-registry";
 import {
   RecommendationEntity,
 } from "../types";
@@ -44,7 +45,11 @@ export class RecommendationService {
     const goal = await learningStateService.getGoal(userId, goalId);
 
     // 2. Fetch domain graph & curated competencies
-    const graph = competencyMapService.getGraph(goal.domainId);
+    let graph = competencyMapService.getGraph(goal.domainId);
+    if (!graph) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(goal.domainId);
+      graph = competencyMapService.getGraph(goal.domainId);
+    }
     if (!graph) {
       throw new Error(`Prerequisite graph not found for domain '${goal.domainId}'.`);
     }
@@ -328,7 +333,11 @@ export class RecommendationService {
   ): Promise<AdaptiveLearningPlan> {
     const goal = await learningStateService.getGoal(userId, goalId);
 
-    const graph = competencyMapService.getGraph(goal.domainId);
+    let graph = competencyMapService.getGraph(goal.domainId);
+    if (!graph) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(goal.domainId);
+      graph = competencyMapService.getGraph(goal.domainId);
+    }
     if (!graph) {
       throw new Error(`Prerequisite graph not found for domain '${goal.domainId}'.`);
     }

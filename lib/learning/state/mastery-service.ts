@@ -3,6 +3,7 @@ import { learningStateService } from "./learning-state-service";
 import { calculateMastery, MasteryCalculationOutput } from "../mastery";
 import { evaluateLearningGap, LearningGap } from "../gap-analysis";
 import { getCompetencyById } from "../curriculum";
+import { dynamicCurriculumRegistry } from "../curriculum/dynamic-registry";
 import { competencyMapService } from "../competency-map";
 import { EvidenceType, MasteryState } from "../types";
 import { supabasePersistence } from "@/lib/db/supabase-persistence";
@@ -63,7 +64,11 @@ export class MasteryService {
     const goal = await learningStateService.getGoal(userId, goalId);
 
     // 2. Fetch competency definition to determine category (§6, §37)
-    const competency = getCompetencyById(competencyId);
+    let competency = getCompetencyById(competencyId);
+    if (!competency) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(goal.domainId);
+      competency = getCompetencyById(competencyId);
+    }
     if (!competency) {
       throw new Error(`Competency '${competencyId}' not found.`);
     }
@@ -78,7 +83,11 @@ export class MasteryService {
     const masteryOutput = calculateMastery(competencyId, competency.category, competencyEvidence);
 
     // 5. Evaluate Gaps using Prerequisite DAG awareness (§22, §26)
-    const graph = competencyMapService.getGraph(goal.domainId);
+    let graph = competencyMapService.getGraph(goal.domainId);
+    if (!graph) {
+      await dynamicCurriculumRegistry.loadDomainFromDatabase(goal.domainId);
+      graph = competencyMapService.getGraph(goal.domainId);
+    }
     const existingGapKey = `${userId}:${goalId}:${competencyId}`;
     const existingGap = this.gaps.get(existingGapKey);
 
@@ -140,6 +149,7 @@ export class MasteryService {
     };
     this.snapshots.push(snapshot);
     await supabasePersistence.persistMasterySnapshot({
+      id: snapshot.id,
       userId: snapshot.userId,
       learningGoalId: snapshot.learningGoalId,
       competencyId: snapshot.competencyId,

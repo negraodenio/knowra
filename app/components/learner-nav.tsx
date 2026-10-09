@@ -21,6 +21,7 @@ export function LearnerNav() {
   ];
 
   const getDomainLabel = (domainId?: string) => {
+    if (!domainId) return "Learning Track";
     switch (domainId) {
       case "python-junior":
         return "Python Junior";
@@ -29,7 +30,11 @@ export function LearnerNav() {
       case "excel-pro":
         return "Excel Pro";
       default:
-        return "Curriculum";
+        if (domainId.startsWith("dyn-")) {
+          const clean = domainId.replace(/^dyn-/, "").replace(/-/g, " ");
+          return clean.charAt(0).toUpperCase() + clean.slice(1);
+        }
+        return "Adaptive Track";
     }
   };
 

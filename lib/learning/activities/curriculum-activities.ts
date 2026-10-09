@@ -695,6 +695,11 @@ export const CURATED_ACTIVITIES: Record<string, PracticeActivity> = {
   },
 };
 
+import { dynamicCurriculumRegistry } from "../curriculum/dynamic-registry";
+
 export function getPracticeActivity(competencyId: string): PracticeActivity | undefined {
-  return CURATED_ACTIVITIES[competencyId];
+  return (
+    CURATED_ACTIVITIES[competencyId] ||
+    dynamicCurriculumRegistry.getPracticeActivity(competencyId)
+  );
 }

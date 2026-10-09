@@ -13,6 +13,8 @@ export const ALL_CURATED_COMPETENCIES: Competency[] = [
   ...EXCEL_COMPETENCIES,
 ];
 
+import { dynamicCurriculumRegistry } from "./dynamic-registry";
+
 export function getCuratedCompetenciesByDomain(domainId: string): Competency[] {
   switch (domainId) {
     case "python-junior":
@@ -22,10 +24,13 @@ export function getCuratedCompetenciesByDomain(domainId: string): Competency[] {
     case "excel-pro":
       return EXCEL_COMPETENCIES;
     default:
-      return [];
+      return dynamicCurriculumRegistry.getCompetenciesByDomain(domainId);
   }
 }
 
 export function getCompetencyById(competencyId: string): Competency | undefined {
-  return ALL_CURATED_COMPETENCIES.find((c) => c.id === competencyId);
+  return (
+    ALL_CURATED_COMPETENCIES.find((c) => c.id === competencyId) ||
+    dynamicCurriculumRegistry.getCompetencyById(competencyId)
+  );
 }

@@ -120,9 +120,12 @@ export default function LearningMapPage() {
       }
 
       const domainId = activeGoal?.domainId || "python-junior";
-      const domainCompetencies = getCuratedCompetenciesByDomain(domainId);
+      const domainCompetencies =
+        stateData?.domainCompetencies && stateData.domainCompetencies.length > 0
+          ? stateData.domainCompetencies
+          : getCuratedCompetenciesByDomain(domainId);
 
-      const mappedNodes: CompetencyNode[] = domainCompetencies.map((comp) => {
+      const mappedNodes: CompetencyNode[] = domainCompetencies.map((comp: { id: string; title: string; description: string; category: "CONCEPTUAL" | "PROCEDURAL"; prerequisites: string[]; difficulty: number }) => {
         const stateComp = stateCompsMap.get(comp.id);
         const baseline = stateComp?.baselineScore ?? 0;
         const mastery = stateComp?.masteryScore ?? 0;
@@ -209,7 +212,15 @@ export default function LearningMapPage() {
   };
 
   const domain = activeGoal ? getDomain(activeGoal.domainId) : undefined;
-  const domainLabel = domain?.name || (activeGoal?.domainId === "python-junior" ? "Python Junior" : activeGoal?.domainId === "math-exams" ? "Mathematics" : activeGoal?.domainId === "excel-pro" ? "Excel Pro" : "Custom Domain");
+  const domainLabel =
+    domain?.name ||
+    (activeGoal?.domainId === "python-junior"
+      ? "Python Junior"
+      : activeGoal?.domainId === "math-exams"
+      ? "Mathematics"
+      : activeGoal?.domainId === "excel-pro"
+      ? "Excel Pro"
+      : activeGoal?.title || "Trilha Personalizada");
 
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => {

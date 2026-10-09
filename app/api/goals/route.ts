@@ -3,6 +3,10 @@ import { getAuthenticatedUserId } from "@/lib/auth/get-user";
 import { learningStateService, UnauthorizedAccessError } from "@/lib/learning/state/learning-state-service";
 import { productEventService } from "@/lib/observability/product-events";
 
+import { aiCurriculumService } from "@/lib/learning/curriculum/ai-curriculum-service";
+import { getDomain } from "@/lib/learning/domains";
+import { getCuratedCompetenciesByDomain } from "@/lib/learning/curriculum/index";
+
 export async function GET(req: NextRequest) {
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {
@@ -15,7 +19,21 @@ export async function GET(req: NextRequest) {
   try {
     if (goalId) {
       const goal = await learningStateService.getGoal(userId, goalId);
-      return NextResponse.json({ goal });
+      const domain = getDomain(goal.domainId);
+      const domainComps = getCuratedCompetenciesByDomain(goal.domainId);
+      const preview = domain ? {
+        domainId: domain.id,
+        domainName: domain.name,
+        description: domain.description,
+        competencies: domainComps.slice(0, 6).map((c) => ({
+          id: c.id,
+          title: c.title,
+          category: c.category,
+          difficulty: c.difficulty,
+        })),
+        totalCompetencies: domainComps.length,
+      } : null;
+      return NextResponse.json({ goal, preview });
     }
 
     const goals = await learningStateService.getUserGoals(userId);
@@ -45,21 +63,51 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { rawObjective, selectedDomainId, targetOutcome, selfReportedLevel, deadline } = body;
 
-    if (!rawObjective || !selectedDomainId) {
+    if (!rawObjective) {
       return NextResponse.json(
-        { error: "rawObjective and selectedDomainId are required." },
+        { error: "rawObjective is required." },
         { status: 400 }
       );
     }
 
+    // Dynamic AI curriculum generation for arbitrary learning objectives
+    let effectiveDomainId = selectedDomainId;
+    if (
+      !effectiveDomainId ||
+      effectiveDomainId === "auto" ||
+      effectiveDomainId === "dynamic" ||
+      !getDomain(effectiveDomainId)
+    ) {
+      const { domain } = await aiCurriculumService.generateCurriculumForObjective(
+        rawObjective,
+        userId
+      );
+      effectiveDomainId = domain.id;
+    }
+
     const result = await learningStateService.createGoal(userId, {
       rawObjective,
-      selectedDomainId,
+      selectedDomainId: effectiveDomainId,
       targetOutcome,
       selfReportedLevel,
       deadline,
       userId,
     });
+
+    const domain = getDomain(effectiveDomainId);
+    const domainComps = getCuratedCompetenciesByDomain(effectiveDomainId);
+    const preview = domain ? {
+      domainId: domain.id,
+      domainName: domain.name,
+      description: domain.description,
+      competencies: domainComps.slice(0, 6).map((c) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category,
+        difficulty: c.difficulty,
+      })),
+      totalCompetencies: domainComps.length,
+    } : null;
 
     productEventService.recordEvent(
       userId,
@@ -75,7 +123,7 @@ export async function POST(req: NextRequest) {
       result.goal.domainId
     );
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ ...result, preview }, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 400 });

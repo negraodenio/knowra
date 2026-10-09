@@ -245,6 +245,7 @@ export class SupabasePersistence {
   }
 
   async persistMasterySnapshot(snapshot: {
+    id?: string;
     userId: string;
     learningGoalId?: string;
     competencyId: string;
@@ -260,7 +261,7 @@ export class SupabasePersistence {
     if (!client) return;
 
     try {
-      const { error } = await client.from("mastery_snapshots").insert({
+      const payload: Record<string, unknown> = {
         user_id: snapshot.userId,
         learning_goal_id: snapshot.learningGoalId || null,
         competency_id: snapshot.competencyId,
@@ -271,7 +272,11 @@ export class SupabasePersistence {
         calculation_version: snapshot.calculationVersion || "v1",
         evidence_summary: snapshot.evidenceSummary || {},
         created_at: snapshot.createdAt,
-      });
+      };
+      if (snapshot.id) {
+        payload.id = snapshot.id;
+      }
+      const { error } = await client.from("mastery_snapshots").insert(payload);
       if (error) {
         logger.warn("SupabasePersistence: Failed to persist snapshot", { error: error.message });
       }
