@@ -176,7 +176,10 @@ export default function LearnerDashboardPage() {
     setGoalError(null);
     setUnsupportedNotice(null);
 
-    const objective = rawObjective.trim() || defaultObjective;
+    const trimmed = rawObjective.trim();
+    const detected = detectDomainFromObjective(trimmed);
+    const objective = detected && detected.id === domainId ? trimmed : defaultObjective;
+    setRawObjective("");
 
     try {
       const res = await fetch("/api/goals", {

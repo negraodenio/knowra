@@ -283,9 +283,9 @@ function DiagnosticContent() {
             </Link>
             <Link
               href="/map"
-              className="flex-1 py-3 text-center rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition-colors"
+              className="flex-1 py-3 text-center rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 transition-colors"
             >
-              Explore Learning Map
+              Go to Learning Map &amp; Start Learning →
             </Link>
           </div>
         </div>

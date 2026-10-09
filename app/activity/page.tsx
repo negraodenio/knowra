@@ -370,10 +370,17 @@ function ActivityContent() {
             ) : null}
 
             <Link
-              href="/"
-              className="flex-1 py-3 px-4 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-center transition-colors"
+              href="/map"
+              className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 text-center transition-colors"
             >
-              Back to Dashboard
+              Return to Learning Map →
+            </Link>
+
+            <Link
+              href="/"
+              className="py-3 px-4 rounded-xl font-medium text-xs bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white border border-slate-800 text-center transition-colors"
+            >
+              Dashboard
             </Link>
           </div>
         </div>

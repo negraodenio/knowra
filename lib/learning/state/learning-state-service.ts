@@ -907,6 +907,22 @@ export class LearningStateService {
       state.lastEvidenceAt = now;
       state.updatedAt = now;
       await supabasePersistence.persistCompetencyState(state);
+    } else {
+      const newState: CompetencyStateEntity = {
+        id: uuidv4(),
+        userId,
+        learningGoalId: goalId,
+        competencyId,
+        baselineScore: 0,
+        currentScore: score,
+        masteryState: getMasteryState(score),
+        confidenceScore: confidence,
+        evidenceCount: 1,
+        lastEvidenceAt: now,
+        updatedAt: now,
+      };
+      this.competencyStates.set(stateKey, newState);
+      await supabasePersistence.persistCompetencyState(newState);
     }
 
     return evidence;
