@@ -143,6 +143,31 @@ export class SupabasePersistence {
     if (!client) return;
 
     try {
+      const { data: existing } = await client
+        .from("diagnostic_responses")
+        .select("id")
+        .eq("session_id", resp.sessionId)
+        .eq("item_id", resp.itemId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await client
+          .from("diagnostic_responses")
+          .update({
+            answer: resp.answer,
+            is_correct: resp.isCorrect,
+            score: resp.score,
+            response_time_ms: resp.responseTimeMs ?? null,
+            submitted_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (error) {
+          logger.warn("SupabasePersistence: Failed to update diagnostic response", { error: error.message });
+        }
+        return;
+      }
+
       const { error } = await client.from("diagnostic_responses").insert({
         session_id: resp.sessionId,
         user_id: resp.userId,

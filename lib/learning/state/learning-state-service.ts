@@ -14,6 +14,7 @@ import { evaluateDiagnosticItem, aggregateDiagnosticReport } from "../diagnostic
 import { EvidenceRecord, getMasteryState, MasteryState, CompetencyCategory } from "../types";
 import { supabasePersistence, isLiveDatabaseConfigured } from "@/lib/db/supabase-persistence";
 import { createAdminClient } from "@/lib/db/supabase-admin";
+import { logger } from "@/lib/observability/logger";
 
 export class UnauthorizedAccessError extends Error {
   constructor(message = "Unauthorized: Access denied to requested learner resource.") {
@@ -209,7 +210,12 @@ export class LearningStateService {
   async startDiagnostic(
     userId: string,
     goalId: string
-  ): Promise<{ session: DiagnosticSession; items: DiagnosticItem[] }> {
+  ): Promise<{
+    session: DiagnosticSession;
+    items: DiagnosticItem[];
+    existingAnswers?: Record<string, string>;
+    report?: DiagnosticCompletionReport;
+  }> {
     const goal = await this.getGoal(userId, goalId);
 
     const domain = getDomain(goal.domainId);
@@ -220,6 +226,144 @@ export class LearningStateService {
     const items = getDiagnosticItemsByDomain(goal.domainId);
     if (items.length === 0) {
       throw new Error(`No diagnostic items seeded for domain '${goal.domainId}'.`);
+    }
+
+    // Check if user already has an established completed session for this goal
+    let completedSession: DiagnosticSession | undefined;
+    for (const s of this.sessions.values()) {
+      if (s.userId === userId && s.learningGoalId === goalId && s.status === "COMPLETED") {
+        if (!completedSession || new Date(s.completedAt || s.startedAt).getTime() > new Date(completedSession.completedAt || completedSession.startedAt).getTime()) {
+          completedSession = s;
+        }
+      }
+    }
+
+    // Otherwise check for active in-progress session
+    let inProgressSession: DiagnosticSession | undefined;
+    if (!completedSession) {
+      for (const s of this.sessions.values()) {
+        if (s.userId === userId && s.learningGoalId === goalId && s.status === "IN_PROGRESS") {
+          if (!inProgressSession || new Date(s.startedAt).getTime() > new Date(inProgressSession.startedAt).getTime()) {
+            inProgressSession = s;
+          }
+        }
+      }
+    }
+
+    let existingSession = completedSession || inProgressSession;
+
+    if (!existingSession && isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        // Check for COMPLETED session first (established baseline)
+        const { data: comp } = await client
+          .from("diagnostic_sessions")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("learning_goal_id", goalId)
+          .eq("status", "COMPLETED")
+          .order("completed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (comp) {
+          existingSession = {
+            id: comp.id,
+            userId: comp.user_id,
+            learningGoalId: comp.learning_goal_id,
+            domainId: comp.domain_id,
+            mapVersion: comp.map_version,
+            status: comp.status,
+            startedAt: comp.started_at,
+            completedAt: comp.completed_at,
+            overallBaselineScore: comp.overall_baseline_score ?? undefined,
+            itemIds: comp.item_ids || [],
+          };
+          this.sessions.set(existingSession.id, existingSession);
+        } else {
+          // If no completed session, find most recent IN_PROGRESS session
+          const { data: inProg } = await client
+            .from("diagnostic_sessions")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("learning_goal_id", goalId)
+            .eq("status", "IN_PROGRESS")
+            .order("started_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (inProg) {
+            existingSession = {
+              id: inProg.id,
+              userId: inProg.user_id,
+              learningGoalId: inProg.learning_goal_id,
+              domainId: inProg.domain_id,
+              mapVersion: inProg.map_version,
+              status: inProg.status,
+              startedAt: inProg.started_at,
+              completedAt: inProg.completed_at,
+              overallBaselineScore: inProg.overall_baseline_score ?? undefined,
+              itemIds: inProg.item_ids || [],
+            };
+            this.sessions.set(existingSession.id, existingSession);
+          }
+        }
+      } catch (err) {
+        logger.warn("LearningStateService: error looking up session", { error: String(err) });
+      }
+    }
+
+    if (existingSession) {
+      let sessionResponses = this.responses.get(existingSession.id) || [];
+      if (isLiveDatabaseConfigured()) {
+        try {
+          const client = createAdminClient();
+          const { data } = await client
+            .from("diagnostic_responses")
+            .select("*")
+            .eq("session_id", existingSession.id);
+          if (data && data.length > 0) {
+            const map = new Map<string, DiagnosticResponse>();
+            for (const r of sessionResponses) map.set(r.itemId, r);
+            for (const r of data) {
+              map.set(r.item_id, {
+                id: r.id,
+                sessionId: r.session_id,
+                userId: r.user_id,
+                itemId: r.item_id,
+                competencyId: r.competency_id,
+                answer: r.answer,
+                isCorrect: r.is_correct,
+                score: r.score,
+                submittedAt: r.submitted_at || new Date().toISOString(),
+              });
+            }
+            sessionResponses = Array.from(map.values());
+            this.responses.set(existingSession.id, sessionResponses);
+          }
+        } catch {
+          // Fallback
+        }
+      }
+
+      const existingAnswers: Record<string, string> = {};
+      for (const r of sessionResponses) {
+        existingAnswers[r.itemId] = r.answer;
+      }
+
+      if (existingSession.status === "COMPLETED") {
+        const report = aggregateDiagnosticReport(
+          existingSession.id,
+          existingSession.learningGoalId,
+          existingSession.domainId,
+          existingSession.mapVersion,
+          items,
+          sessionResponses
+        );
+        return { session: existingSession, items, existingAnswers, report };
+      }
+
+      return { session: existingSession, items, existingAnswers };
     }
 
     const sessionId = uuidv4();
@@ -368,7 +512,45 @@ export class LearningStateService {
       throw new UnauthorizedAccessError("Access denied: You do not own this diagnostic session.");
     }
     if (session.status === "COMPLETED") {
-      throw new Error("Diagnostic session has already been completed.");
+      let responses = this.responses.get(sessionId) || [];
+      if (isLiveDatabaseConfigured()) {
+        try {
+          const client = createAdminClient();
+          const { data } = await client
+            .from("diagnostic_responses")
+            .select("*")
+            .eq("session_id", sessionId);
+          if (data && data.length > 0) {
+            responses = data.map((r) => ({
+              id: r.id,
+              sessionId: r.session_id,
+              userId: r.user_id,
+              itemId: r.item_id,
+              competencyId: r.competency_id,
+              answer: r.answer,
+              isCorrect: r.is_correct,
+              score: r.score,
+              submittedAt: r.submitted_at || new Date().toISOString(),
+            }));
+            this.responses.set(sessionId, responses);
+          }
+        } catch {
+          // Fallback
+        }
+      }
+
+      if (!getDomain(session.domainId)) {
+        await dynamicCurriculumRegistry.loadDomainFromDatabase(session.domainId);
+      }
+      const items = getDiagnosticItemsByDomain(session.domainId);
+      return aggregateDiagnosticReport(
+        sessionId,
+        session.learningGoalId,
+        session.domainId,
+        session.mapVersion,
+        items,
+        responses
+      );
     }
 
     if (!getDomain(session.domainId)) {
@@ -377,7 +559,14 @@ export class LearningStateService {
 
     const items = getDiagnosticItemsByDomain(session.domainId);
     let responses = this.responses.get(sessionId) || [];
-    if (responses.length === 0 && isLiveDatabaseConfigured()) {
+
+    // Deduplicate by itemId
+    const uniqueResponsesMap = new Map<string, DiagnosticResponse>();
+    for (const r of responses) {
+      uniqueResponsesMap.set(r.itemId, r);
+    }
+
+    if (uniqueResponsesMap.size < items.length && isLiveDatabaseConfigured()) {
       try {
         const client = createAdminClient();
         const { data } = await client
@@ -385,23 +574,29 @@ export class LearningStateService {
           .select("*")
           .eq("session_id", sessionId);
         if (data && data.length > 0) {
-          responses = data.map((r) => ({
-            id: r.id,
-            sessionId: r.session_id,
-            userId: r.user_id,
-            itemId: r.item_id,
-            competencyId: r.competency_id,
-            answer: r.answer,
-            isCorrect: r.is_correct,
-            score: r.score,
-            submittedAt: r.created_at || new Date().toISOString(),
-          }));
-          this.responses.set(sessionId, responses);
+          for (const r of data) {
+            if (!uniqueResponsesMap.has(r.item_id)) {
+              uniqueResponsesMap.set(r.item_id, {
+                id: r.id,
+                sessionId: r.session_id,
+                userId: r.user_id,
+                itemId: r.item_id,
+                competencyId: r.competency_id,
+                answer: r.answer,
+                isCorrect: r.is_correct,
+                score: r.score,
+                submittedAt: r.submitted_at || new Date().toISOString(),
+              });
+            }
+          }
         }
       } catch {
         // Fallback
       }
     }
+
+    responses = Array.from(uniqueResponsesMap.values());
+    this.responses.set(sessionId, responses);
 
     // Ensure all required items have answers before completing (§23)
     if (responses.length < items.length) {
@@ -713,10 +908,8 @@ export class LearningStateService {
     goalId: string
   ): Promise<EvidenceRecord[]> {
     await this.getGoal(userId, goalId); // Ownership check
-
-    return this.evidenceRecords.filter(
-      (e) => e.learnerId === userId && e.evidenceType === "DIAGNOSTIC"
-    );
+    const all = await this.getAllEvidence(userId, goalId);
+    return all.filter((e) => e.evidenceType === "DIAGNOSTIC");
   }
 
   async getAllEvidence(
@@ -725,6 +918,46 @@ export class LearningStateService {
   ): Promise<EvidenceRecord[]> {
     if (goalId) {
       await this.getGoal(userId, goalId); // Ownership check
+    }
+
+    if (isLiveDatabaseConfigured()) {
+      try {
+        const client = createAdminClient();
+        let query = client.from("evidence").select("*").eq("user_id", userId);
+        if (goalId) {
+          query = query.eq("learning_goal_id", goalId);
+        }
+        const { data, error } = await query.order("created_at", { ascending: true });
+        if (data && !error) {
+          const loaded: EvidenceRecord[] = data.map((r) => ({
+            id: r.id,
+            learnerId: r.user_id,
+            competencyId: r.competency_id,
+            evidenceType: r.evidence_type,
+            result: r.result,
+            score: Number(r.score),
+            confidence: Number(r.confidence),
+            source: r.source,
+            timestamp: r.created_at,
+            metadata: {
+              ...(typeof r.metadata === "object" && r.metadata ? r.metadata : {}),
+              goalId: r.learning_goal_id || (r.metadata as Record<string, unknown>)?.goalId,
+            },
+            version: r.version || 1,
+          }));
+
+          for (const ev of loaded) {
+            const idx = this.evidenceRecords.findIndex((e) => e.id === ev.id);
+            if (idx >= 0) {
+              this.evidenceRecords[idx] = ev;
+            } else {
+              this.evidenceRecords.push(ev);
+            }
+          }
+        }
+      } catch {
+        // Fallback to in-memory records
+      }
     }
 
     return this.evidenceRecords.filter(
@@ -789,7 +1022,7 @@ export class LearningStateService {
             .select("*")
             .eq("learning_goal_id", goalId)
             .eq("user_id", userId)
-            .order("created_at", { ascending: false }),
+            .order("started_at", { ascending: false }),
           client
             .from("competency_states")
             .select("*")
