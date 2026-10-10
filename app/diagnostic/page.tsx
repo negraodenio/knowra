@@ -1,37 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LearnerNav } from "../components/learner-nav";
 import { useLearner } from "../lib/use-learner";
+import { DiagnosticItem, DiagnosticCompletionReport } from "@/lib/learning/diagnostic/types";
 
-interface DiagnosticItem {
-  id: string;
-  competencyId: string;
-  prompt: string;
-  itemType: "MULTIPLE_CHOICE" | "NUMERIC" | "TEXT";
-  difficulty: number;
-  options?: string[];
-}
-
-interface DiagnosticReport {
-  sessionId: string;
+interface DiagnosticReport extends DiagnosticCompletionReport {
   learningGoalId: string;
-  domainId: string;
-  overallBaselineScore: number;
-  relativeStrengths: string[];
-  lowerBaselines: string[];
 }
 
 function DiagnosticContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const goalIdParam = searchParams.get("goalId");
+  const { userId, activeGoal, refreshGoals } = useLearner();
 
-  const { userId, activeGoalId, goals, refreshGoals } = useLearner();
-  const isGoalOwned = goals.some((g) => g.id === activeGoalId);
-  const effectiveGoalId = goalIdParam || (isGoalOwned ? activeGoalId : null) || (goals.length > 0 ? goals[0].id : null);
+  const effectiveGoalId = goalIdParam || activeGoal?.id;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<DiagnosticItem[]>([]);
@@ -54,14 +40,32 @@ function DiagnosticContent() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to start diagnostic session");
       }
 
       const data = await res.json();
       setSessionId(data.session.id);
-      setItems(data.items || []);
-      setCurrentIndex(0);
+      const fetchedItems: DiagnosticItem[] = data.items || [];
+      setItems(fetchedItems);
+
+      if (data.report) {
+        setReport(data.report);
+        return;
+      }
+
+      // Restore existing answers if resuming an in-progress session
+      if (data.existingAnswers && Object.keys(data.existingAnswers).length > 0) {
+        setAnswers(data.existingAnswers);
+        const firstUnanswered = fetchedItems.findIndex((it) => !data.existingAnswers[it.id]);
+        if (firstUnanswered !== -1) {
+          setCurrentIndex(firstUnanswered);
+        } else {
+          setCurrentIndex(Math.max(0, fetchedItems.length - 1));
+        }
+      } else {
+        setCurrentIndex(0);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -83,16 +87,26 @@ function DiagnosticContent() {
     const currentItem = items[currentIndex];
     if (!currentItem) return;
     setAnswers((prev) => ({ ...prev, [currentItem.id]: ans }));
+    if (error) setError(null);
   };
 
   const handleNextOrFinish = async () => {
-    if (!sessionId || !userId) return;
+    if (!sessionId || !userId || submitting) return;
     const currentItem = items[currentIndex];
+    if (!currentItem) return;
     const currentAnswer = answers[currentItem.id] || "";
 
-    // Submit answer to server (§14)
+    if (!currentAnswer.trim()) {
+      setError("Please select or enter an answer before continuing.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    // 1. Submit answer to server with error verification
     try {
-      await fetch(`/api/diagnostic/${sessionId}/answer`, {
+      const res = await fetch(`/api/diagnostic/${sessionId}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
         body: JSON.stringify({
@@ -100,16 +114,33 @@ function DiagnosticContent() {
           answer: currentAnswer,
         }),
       });
-    } catch {
-      // Best-effort answer persistence
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to record answer. Please try again.");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to record answer.");
+      setSubmitting(false);
+      return;
     }
+
+    const updatedAnswers = { ...answers, [currentItem.id]: currentAnswer };
 
     if (currentIndex < items.length - 1) {
       setCurrentIndex((prev) => prev + 1);
+      setSubmitting(false);
     } else {
-      // Complete Diagnostic
-      setSubmitting(true);
-      setError(null);
+      // 2. We reached the last question. Verify all prior questions have answers.
+      const missingIndex = items.findIndex((it) => !updatedAnswers[it.id]?.trim());
+      if (missingIndex !== -1 && missingIndex !== currentIndex) {
+        setCurrentIndex(missingIndex);
+        setError(`Please answer question ${missingIndex + 1} of ${items.length} to complete your diagnostic.`);
+        setSubmitting(false);
+        return;
+      }
+
+      // 3. Complete Diagnostic
       try {
         const completeRes = await fetch(`/api/diagnostic/${sessionId}/complete`, {
           method: "POST",
@@ -117,7 +148,7 @@ function DiagnosticContent() {
         });
 
         if (!completeRes.ok) {
-          const err = await completeRes.json();
+          const err = await completeRes.json().catch(() => ({}));
           throw new Error(err.error || "Failed to complete diagnostic");
         }
 
@@ -141,7 +172,7 @@ function DiagnosticContent() {
         </p>
         <Link
           href="/"
-          className="inline-block px-5 py-2.5 rounded-xl font-medium text-xs bg-white text-[#07090e] hover:bg-slate-200 transition-colors"
+          className="inline-block px-5 py-2.5 rounded-xl font-medium text-xs bg-[#F4F4F0] text-[#0C0C0D] hover:bg-white transition-colors"
         >
           Go to Home →
         </Link>
@@ -162,14 +193,14 @@ function DiagnosticContent() {
             Calibrating diagnostic questions...
           </p>
         </div>
-      ) : error ? (
+      ) : error && !currentItem ? (
         <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-300 space-y-4">
           <div className="font-semibold text-sm">Diagnostic Error</div>
           <p className="text-xs leading-relaxed">{error}</p>
           <div className="flex items-center gap-3 pt-2">
             <button
               onClick={() => startDiagnosticSession()}
-              className="px-4 py-2 rounded-xl bg-white text-[#07090e] text-xs font-medium hover:bg-slate-200 transition-colors"
+              className="px-4 py-2 rounded-xl bg-[#F4F4F0] text-[#0C0C0D] text-xs font-medium hover:bg-white transition-colors"
             >
               Retry
             </button>
@@ -187,67 +218,60 @@ function DiagnosticContent() {
            ========================================================== */
         <div className="space-y-8 animate-fade-in">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono tracking-widest uppercase bg-white/[0.04] text-emerald-400 border border-white/[0.08]">
-              <span>✓ Baseline Calibrated</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono tracking-widest uppercase bg-white/[0.04] text-[#C95C3F] border border-white/[0.08]">
+              <span>Diagnostic Complete</span>
+              <span className="text-slate-600">•</span>
+              <span>Baseline Established</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white font-serif">
-              Your Starting Point
+
+            <h1 className="text-2xl sm:text-4xl font-light tracking-tight text-white font-serif leading-tight">
+              Your starting benchmark is {report.overallBaselineScore.toFixed(1)}%.
             </h1>
+
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
-              Your initial baseline is calibrated. The Learning Engine has prepared your first lesson based on prerequisite requirements.
+              This is not a grade. It is an immutable calibration point that enables Knowra to isolate learning gaps and prove genuine learning gain over time.
             </p>
           </div>
 
-          {/* Baseline metric */}
-          <div className="p-6 rounded-2xl border border-white/[0.08] bg-[#0c1018] flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">
-                Overall Baseline
+          {/* Transparent, calm baseline breakdown */}
+          {report.relativeStrengths && report.relativeStrengths.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl border border-white/[0.06] bg-[#161617] space-y-2.5">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-[#C95C3F]">
+                Verified Prior Knowledge
               </div>
-              <div className="text-3xl font-light font-mono text-white mt-1">
-                {report.overallBaselineScore.toFixed(0)}%
+              <div className="text-xs text-slate-300 leading-relaxed">
+                Prior competence detected in:{" "}
+                <span className="text-white font-medium">
+                  {report.relativeStrengths.slice(0, 3).join(", ")}
+                </span>
+                . You will not be forced through repetitive introductory material.
               </div>
             </div>
-            <div className="text-right text-xs text-slate-400">
-              <span className="text-emerald-400 font-medium">Ready to learn</span>
-              <div className="text-[11px] text-slate-500 font-mono mt-0.5">Engine calibrated</div>
-            </div>
-          </div>
+          )}
 
-          {/* Strengths & focus areas preview */}
-          {(report.relativeStrengths.length > 0 || report.lowerBaselines.length > 0) && (
-            <div className="space-y-3 text-xs">
-              {report.relativeStrengths.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400">
-                    Recognized Strengths
-                  </div>
-                  <div className="space-y-1">
-                    {report.relativeStrengths.slice(0, 3).map((s, idx) => (
-                      <div key={idx} className="text-slate-300 flex items-center gap-2">
-                        <span className="text-emerald-400 text-xs">✓</span>
-                        <span>{s}</span>
+          {/* Flagged learning gaps / lower baselines preview */}
+          {report.lowerBaselines && report.lowerBaselines.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl border border-white/[0.06] bg-[#161617] space-y-3">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-[#C95C3F]">
+                Identified Starting Focus
+              </div>
+              <div className="space-y-2">
+                {report.lowerBaselines.slice(0, 3).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-xs sm:text-sm font-medium text-white">
+                        {item}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {report.lowerBaselines.length > 0 && (
-                <div className="space-y-1.5 pt-2">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-amber-400">
-                    Target Focus Areas
-                  </div>
-                  <div className="space-y-1">
-                    {report.lowerBaselines.slice(0, 3).map((b, idx) => (
-                      <div key={idx} className="text-slate-300 flex items-center gap-2">
-                        <span className="text-amber-400 text-xs">•</span>
-                        <span>{b}</span>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Needs targeted practice to build foundation
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
 
@@ -256,7 +280,7 @@ function DiagnosticContent() {
             <button
               id="diagnostic-start-lesson-button"
               onClick={() => router.push(`/activity?goalId=${report.learningGoalId}`)}
-              className="w-full sm:flex-1 py-3.5 px-6 rounded-xl font-medium text-xs sm:text-sm text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide shadow-lg flex items-center justify-center gap-2"
+              className="w-full sm:flex-1 py-3.5 px-6 rounded-xl font-medium text-xs sm:text-sm text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white transition-all tracking-wide shadow-lg flex items-center justify-center gap-2"
             >
               Start my first lesson →
             </button>
@@ -273,85 +297,131 @@ function DiagnosticContent() {
         /* ==========================================================
            DISTRACTION-FREE DIAGNOSTIC QUESTION
            ========================================================== */
-        <div className="space-y-8 animate-fade-in">
-          {/* Subtle Progress Indicator */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+        <div className="space-y-6 animate-fade-in">
+          {/* Subtle Progress Indicator & Question Navigation */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400">
               <span>
                 Question {currentIndex + 1} of {items.length}
               </span>
               <span>{progressPercent.toFixed(0)}%</span>
             </div>
+
             <div className="h-0.5 w-full bg-white/[0.08] rounded-full overflow-hidden">
               <div
-                className="h-full bg-white transition-all duration-300"
+                className="h-full bg-[#C95C3F] transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
+
+            {/* Item Navigation Dots */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+              {items.map((it, idx) => {
+                const hasAnswer = Boolean(answers[it.id]?.trim());
+                const isCurrent = idx === currentIndex;
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setCurrentIndex(idx);
+                    }}
+                    className={`w-6 h-6 rounded-md text-[10px] font-mono flex items-center justify-center transition-all ${
+                      isCurrent
+                        ? "bg-[#C95C3F] text-[#F4F4F0] font-bold ring-2 ring-[#C95C3F]/40"
+                        : hasAnswer
+                        ? "bg-white/[0.08] text-[#F4F4F0] hover:bg-white/[0.14]"
+                        : "bg-white/[0.02] text-[#A3A3A3]/50 border border-white/[0.06] hover:border-white/20"
+                    }`}
+                    title={`Question ${idx + 1}${hasAnswer ? " (Answered)" : " (Unanswered)"}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Question Prompt */}
-          <div className="space-y-3 pt-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+          {/* Inline Error Banner (Non-destructive) */}
+          {error && (
+            <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 text-xs flex items-center justify-between gap-3 animate-fade-in font-mono">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-rose-400 hover:text-rose-200 text-xs font-mono font-bold px-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Question Prompt Card */}
+          <div className="p-6 rounded-2xl border border-white/[0.08] bg-[#161617] space-y-4">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-[#C95C3F]">
               {currentItem.competencyId.replace(/^[a-z]+-/, "").replace(/-/g, " ")}
             </div>
-            <h2 className="text-lg sm:text-xl font-light text-white leading-relaxed">
+            <h2 className="text-base sm:text-lg font-light text-[#F4F4F0] leading-relaxed">
               {currentItem.prompt}
             </h2>
-          </div>
 
-          {/* Answer Controls */}
-          <div className="space-y-2.5 pt-2">
-            {currentItem.options ? (
-              <div className="space-y-2">
-                {currentItem.options.map((opt, optIdx) => {
-                  const isSelected = currentAnswer === opt;
-                  const letter = String.fromCharCode(65 + optIdx);
-                  return (
-                    <button
-                      key={optIdx}
-                      type="button"
-                      onClick={() => handleSelectAnswer(opt)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-3.5 ${
-                        isSelected
-                          ? "border-white bg-white/[0.08] text-white shadow-sm"
-                          : "border-white/[0.06] bg-[#0c1018] text-slate-300 hover:border-white/20 hover:text-white"
-                      }`}
-                    >
-                      <span
-                        className={`text-xs font-mono px-2 py-0.5 rounded ${
+            {/* Answer Controls */}
+            <div className="space-y-2.5 pt-2">
+              {currentItem.options ? (
+                <div className="space-y-2">
+                  {currentItem.options.map((opt, optIdx) => {
+                    const isSelected = currentAnswer === opt;
+                    const letter = String.fromCharCode(65 + optIdx);
+                    return (
+                      <button
+                        key={optIdx}
+                        type="button"
+                        onClick={() => handleSelectAnswer(opt)}
+                        className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-start gap-3.5 ${
                           isSelected
-                            ? "bg-white text-[#07090e] font-semibold"
-                            : "bg-white/[0.04] text-slate-500"
+                            ? "border-[#C95C3F] bg-[#C95C3F]/10 text-white shadow-sm"
+                            : "border-white/[0.06] bg-[#0C0C0D] text-slate-300 hover:border-white/20 hover:text-white"
                         }`}
                       >
-                        {letter}
-                      </span>
-                      <span className="text-xs sm:text-sm font-normal leading-relaxed flex-1">
-                        {opt}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <input
-                type="text"
-                placeholder="Type your answer here..."
-                value={currentAnswer}
-                onChange={(e) => handleSelectAnswer(e.target.value)}
-                className="w-full bg-[#0c1018] border border-white/[0.08] focus:border-white/30 rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors"
-              />
-            )}
+                        <span
+                          className={`text-xs font-mono px-2 py-0.5 rounded ${
+                            isSelected
+                              ? "bg-[#C95C3F] text-[#F4F4F0] font-semibold"
+                              : "bg-white/[0.04] text-slate-500"
+                          }`}
+                        >
+                          {letter}
+                        </span>
+                        <span className="text-xs sm:text-sm font-normal leading-relaxed flex-1">
+                          {opt}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Type your answer here..."
+                  value={currentAnswer}
+                  onChange={(e) => handleSelectAnswer(e.target.value)}
+                  className="w-full bg-[#0C0C0D] border border-white/[0.08] focus:border-[#C95C3F] rounded-xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors font-mono"
+                />
+              )}
+            </div>
           </div>
 
           {/* Advance or Submit Action */}
-          <div className="pt-4 flex items-center justify-between">
+          <div className="pt-2 flex items-center justify-between">
             {currentIndex > 0 ? (
               <button
                 type="button"
-                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                onClick={() => {
+                  setError(null);
+                  setCurrentIndex((prev) => Math.max(0, prev - 1));
+                }}
+                className="text-xs text-slate-400 hover:text-white transition-colors py-2 px-3 rounded-lg border border-white/[0.06] bg-[#161617]"
               >
                 ← Previous
               </button>
@@ -362,13 +432,18 @@ function DiagnosticContent() {
               type="button"
               disabled={submitting || !currentAnswer}
               onClick={handleNextOrFinish}
-              className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-[#07090e] bg-white hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
+              className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md flex items-center gap-2"
             >
-              {submitting
-                ? "Calibrating..."
-                : currentIndex === items.length - 1
-                ? "Complete diagnostic →"
-                : "Next question →"}
+              {submitting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                  <span>{currentIndex === items.length - 1 ? "Completing..." : "Saving..."}</span>
+                </>
+              ) : currentIndex === items.length - 1 ? (
+                "Complete diagnostic →"
+              ) : (
+                "Next question →"
+              )}
             </button>
           </div>
         </div>
@@ -379,7 +454,7 @@ function DiagnosticContent() {
 
 export default function DiagnosticPage() {
   return (
-    <div className="min-h-screen bg-[#07090e] text-[#f6f3eb] flex flex-col font-sans selection:bg-white/20 selection:text-white antialiased">
+    <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col font-sans selection:bg-[#C95C3F]/30 selection:text-[#F4F4F0] antialiased">
       <LearnerNav />
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col justify-center">
         <Suspense

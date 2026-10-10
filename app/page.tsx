@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { LearnerNav } from "./components/learner-nav";
 import { useLearner } from "./lib/use-learner";
@@ -73,6 +73,19 @@ export default function LearnerHomePage() {
   // Auth modal state for unauthenticated conversions
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"SIGN_IN" | "SIGN_UP">("SIGN_UP");
+
+  // Show compact list of journeys by default (§2 Issue A)
+  const [showAllJourneys, setShowAllJourneys] = useState(false);
+
+  const sortedGoals = useMemo(() => {
+    return [...goals].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [goals]);
+
+  const displayedGoals = showAllJourneys ? sortedGoals : sortedGoals.slice(0, 3);
 
   // Handle goal creation (natural language or curated)
   const handleCreatePath = async (e?: React.FormEvent) => {
@@ -157,9 +170,9 @@ export default function LearnerHomePage() {
   // Loading state during auth verification
   if (learnerLoading && userId) {
     return (
-      <div className="min-h-screen bg-[#07090e] text-[#f6f3eb] flex flex-col items-center justify-center space-y-3 font-sans selection:bg-white/20 selection:text-white">
+      <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col items-center justify-center space-y-3 font-sans selection:bg-[#C95C3F]/30 selection:text-[#F4F4F0]">
         <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        <p className="text-xs text-slate-400 font-mono tracking-wider uppercase">Loading Knowra...</p>
+        <p className="text-xs text-[#A3A3A3] font-mono tracking-wider uppercase">Loading Knowra...</p>
       </div>
     );
   }
@@ -189,7 +202,7 @@ export default function LearnerHomePage() {
 
   // Authenticated Learner -> Calm, Minimal Guided Home
   return (
-    <div className="min-h-screen bg-[#07090e] text-[#f6f3eb] flex flex-col font-sans selection:bg-white/20 selection:text-white antialiased">
+    <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col font-sans selection:bg-[#C95C3F]/30 selection:text-[#F4F4F0] antialiased">
       <LearnerNav />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-12 sm:py-20 flex flex-col justify-center">
@@ -226,7 +239,7 @@ export default function LearnerHomePage() {
                   {pathPreview.competencies.map((c) => (
                     <div
                       key={c.id}
-                      className="px-4 py-3 rounded-xl border border-white/[0.06] bg-[#0c1018] flex items-center justify-between"
+                      className="px-4 py-3 rounded-xl border border-white/[0.06] bg-[#161617] flex items-center justify-between"
                     >
                       <span className="text-xs sm:text-sm text-slate-200 font-medium">
                         {c.title}
@@ -245,7 +258,7 @@ export default function LearnerHomePage() {
               <button
                 id="preview-start-diagnostic-button"
                 onClick={() => router.push(`/diagnostic?goalId=${pathPreview.goalId}`)}
-                className="w-full sm:flex-1 py-3.5 px-6 rounded-xl font-medium text-xs sm:text-sm text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide shadow-lg flex items-center justify-center gap-2"
+                className="w-full sm:flex-1 py-3.5 px-6 rounded-xl font-medium text-xs sm:text-sm text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white transition-all tracking-wide shadow-lg flex items-center justify-center gap-2"
               >
                 Start diagnostic →
               </button>
@@ -276,7 +289,7 @@ export default function LearnerHomePage() {
 
             {/* Single natural-language input & submit CTA */}
             <form onSubmit={handleCreatePath} className="space-y-3">
-              <div className="rounded-2xl border border-white/[0.08] bg-[#0c1018] p-3 sm:p-4 focus-within:border-white/25 transition-all space-y-3 shadow-xl">
+              <div className="rounded-2xl border border-white/[0.08] bg-[#161617] p-3 sm:p-4 focus-within:border-white/25 transition-all space-y-3 shadow-xl">
                 <textarea
                   id="home-learning-objective-input"
                   rows={2}
@@ -295,7 +308,7 @@ export default function LearnerHomePage() {
                     id="home-start-learning-button"
                     type="submit"
                     disabled={submittingGoal || (!rawObjective.trim() && !selectedCuratedId)}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-xs sm:text-sm text-[#07090e] bg-white hover:bg-slate-200 transition-all tracking-wide disabled:opacity-30 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 whitespace-nowrap"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-xs sm:text-sm text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white transition-all tracking-wide disabled:opacity-30 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 whitespace-nowrap"
                   >
                     {submittingGoal ? (
                       <>
@@ -341,12 +354,12 @@ export default function LearnerHomePage() {
                       onClick={() => handleSelectCuratedTrack(track.id)}
                       className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between ${
                         isSelected
-                          ? "border-white/30 bg-white/[0.06] text-white"
-                          : "border-white/[0.06] bg-[#0c1018]/60 text-slate-300 hover:border-white/15 hover:bg-[#0c1018]"
+                          ? "border-[#C95C3F]/50 bg-[#C95C3F]/10 text-white"
+                          : "border-white/[0.06] bg-[#161617]/60 text-slate-300 hover:border-white/15 hover:bg-[#161617]"
                       }`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <span className="text-xs font-mono text-slate-500">{track.number}</span>
+                        <span className="text-xs font-mono text-[#C95C3F]">{track.number}</span>
                         <span className="text-xs sm:text-sm font-medium text-white">{track.title}</span>
                         <span className="text-xs text-slate-500 hidden sm:inline">• {track.subtitle}</span>
                       </div>
@@ -359,40 +372,70 @@ export default function LearnerHomePage() {
               </div>
             </div>
 
-            {/* Separate, compact "Continue learning" section */}
-            {goals.length > 0 && (
+            {/* Separate, compact "Continue learning" section (§2 Issue A) */}
+            {sortedGoals.length > 0 && (
               <section className="pt-6 border-t border-white/[0.06] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-mono tracking-widest text-slate-500 uppercase">
                     Continue learning
                   </span>
                   <span className="text-xs text-slate-500 font-mono">
-                    {goals.length} {goals.length === 1 ? "journey" : "journeys"}
+                    {sortedGoals.length} {sortedGoals.length === 1 ? "journey" : "journeys"}
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  {goals.map((g) => (
+                  {displayedGoals.map((g) => (
                     <div
                       key={g.id}
-                      className="px-4 py-3 rounded-xl border border-white/[0.06] bg-[#0c1018]/80 flex items-center justify-between hover:border-white/15 transition-all"
+                      className="px-4 py-3 rounded-xl border border-white/[0.06] bg-[#161617]/80 flex items-center justify-between hover:border-white/15 transition-all"
                     >
-                      <div className="truncate mr-4">
-                        <div className="text-xs sm:text-sm font-medium text-white truncate">{g.title}</div>
-                        <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono mt-0.5">
-                          {formatDomainLabel(g.domainId)}
+                      <div className="truncate mr-4 min-w-0">
+                        <div
+                          className="text-xs sm:text-sm font-medium text-white truncate max-w-sm sm:max-w-md"
+                          title={g.title}
+                        >
+                          {g.title}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-slate-400 font-mono mt-0.5">
+                          <span>{formatDomainLabel(g.domainId)}</span>
+                          {g.createdAt && (
+                            <>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-slate-500">
+                                {new Date(g.createdAt).toLocaleDateString([], {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
 
                       <button
                         onClick={() => handleResumeGoal(g.id)}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] transition-colors whitespace-nowrap"
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] transition-colors whitespace-nowrap shrink-0"
                       >
                         Resume →
                       </button>
                     </div>
                   ))}
                 </div>
+
+                {sortedGoals.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllJourneys(!showAllJourneys)}
+                    className="w-full py-2.5 px-4 rounded-xl border border-white/[0.06] bg-[#161617]/50 hover:bg-[#161617] text-xs font-mono text-slate-400 hover:text-white transition-all text-center flex items-center justify-center gap-2"
+                  >
+                    <span>
+                      {showAllJourneys
+                        ? "Show fewer journeys ↑"
+                        : `View all ${sortedGoals.length} journeys (${sortedGoals.length - 3} more) ↓`}
+                    </span>
+                  </button>
+                )}
               </section>
             )}
           </div>

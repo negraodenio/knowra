@@ -132,28 +132,28 @@ export function AuthModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#07090e]/85 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0C0C0D]/85 backdrop-blur-md animate-fade-in"
     >
-      <div className="relative w-full max-w-md rounded-xl border border-white/[0.08] bg-[#0c1018] p-6 sm:p-8 shadow-2xl space-y-6">
+      <div className="relative w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#161617] p-6 sm:p-8 shadow-2xl space-y-6">
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Close modal"
-          className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors text-sm font-mono p-1"
+          className="absolute top-4 right-4 text-[#A3A3A3] hover:text-[#F4F4F0] transition-colors text-sm font-mono p-1"
         >
           ✕
         </button>
 
         {/* Header */}
         <div className="space-y-2 text-center">
-          <div className="flex justify-center mb-1">
-            <KnowraHorizontalLogo theme="dark" className="h-6 w-auto" />
+          <div className="flex justify-center mb-2">
+            <KnowraHorizontalLogo className="h-8 w-auto text-[#F4F4F0]" />
           </div>
-          <h2 id="auth-modal-title" className="text-xl sm:text-2xl font-light text-white tracking-tight">
+          <h2 id="auth-modal-title" className="text-xl sm:text-2xl font-light text-[#F4F4F0] tracking-tight">
             {mode === "SIGN_UP" ? "Start Learning." : "Sign In."}
           </h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[#A3A3A3]">
             {mode === "SIGN_UP"
               ? "Knowra understands what you already know and adapts what you learn next."
               : "Resume your personalized competency graph and Next Best Action."}
@@ -161,13 +161,13 @@ export function AuthModal({
         </div>
 
         {error && (
-          <div className="p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-300 text-xs font-mono">
+          <div className="p-3 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 text-xs font-mono">
             {error}
           </div>
         )}
 
         {infoMessage && (
-          <div className="p-3 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-mono">
+          <div className="p-3 rounded-lg border border-[#C95C3F]/30 bg-[#C95C3F]/10 text-[#C95C3F] text-xs font-mono">
             {infoMessage}
           </div>
         )}
@@ -175,7 +175,7 @@ export function AuthModal({
         {/* Supabase Email + Password Form (§S8.3) */}
         <form onSubmit={handleAuthSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="auth-modal-email-input" className="block font-mono text-[10px] text-zinc-400 uppercase tracking-widest">
+            <label htmlFor="auth-modal-email-input" className="block font-mono text-[10px] text-[#A3A3A3] uppercase tracking-widest">
               Email Address
             </label>
             <input
@@ -186,12 +186,12 @@ export function AuthModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@domain.com"
-              className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-all font-mono"
+              className="w-full rounded-lg border border-white/[0.08] bg-[#0C0C0D] px-3.5 py-2.5 text-xs text-[#F4F4F0] placeholder-[#A3A3A3]/60 focus:outline-none focus:border-[#C95C3F] transition-all font-mono"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="auth-modal-password-input" className="block font-mono text-[10px] text-zinc-400 uppercase tracking-widest">
+            <label htmlFor="auth-modal-password-input" className="block font-mono text-[10px] text-[#A3A3A3] uppercase tracking-widest">
               Password
             </label>
             <input
@@ -202,10 +202,10 @@ export function AuthModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white/40 transition-all font-mono"
+              className="w-full rounded-lg border border-white/[0.08] bg-[#0C0C0D] px-3.5 py-2.5 text-xs text-[#F4F4F0] placeholder-[#A3A3A3]/60 focus:outline-none focus:border-[#C95C3F] transition-all font-mono"
             />
             {mode === "SIGN_UP" && (
-              <p className="text-[10px] text-zinc-500 font-mono">
+              <p className="text-[10px] text-[#A3A3A3] font-mono">
                 Minimum 6 characters.
               </p>
             )}
@@ -214,7 +214,7 @@ export function AuthModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 rounded-lg font-semibold text-xs uppercase tracking-wider text-[#07090e] bg-white hover:bg-zinc-200 transition-all disabled:opacity-50"
+            className="w-full py-3 px-4 rounded-lg font-semibold text-xs uppercase tracking-wider text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white transition-all disabled:opacity-50 shadow-md"
           >
             {loading ? "Authenticating..." : mode === "SIGN_UP" ? "Create Account →" : "Sign In →"}
           </button>

@@ -217,8 +217,12 @@ export default function ProgressPage() {
     );
   }
 
-  const baselineScore =
-    measurement?.baseline?.score ?? learningState?.overallBaselineScore ?? 0;
+  const hasDiagnosticBaseline = Boolean(
+    learningState?.diagnosticCompleted || measurement?.baseline?.establishedAt
+  );
+  const baselineScore = hasDiagnosticBaseline
+    ? measurement?.baseline?.score ?? learningState?.overallBaselineScore ?? null
+    : null;
   const currentFinalScore = measurement?.final?.score;
   const learningGainVal = measurement?.learningGain;
   const relativeGainVal = measurement?.relativeGain;
@@ -362,11 +366,23 @@ export default function ProgressPage() {
                   Baseline (Diagnostic)
                 </div>
                 <div className="text-4xl font-extrabold font-mono text-white">
-                  {baselineScore.toFixed(0)}%
+                  {hasDiagnosticBaseline && baselineScore !== null ? `${baselineScore.toFixed(0)}%` : "Pending"}
                 </div>
                 <p className="text-xs text-slate-500">
-                  Initial calibrating measurement. Immutable starting anchor.
+                  {hasDiagnosticBaseline && baselineScore !== null
+                    ? "Initial calibrating measurement. Immutable starting anchor."
+                    : "Diagnostic not completed yet. Complete diagnostic to establish starting baseline."}
                 </p>
+                {!hasDiagnosticBaseline && (
+                  <div className="pt-1">
+                    <Link
+                      href={`/diagnostic?goalId=${activeGoal.id}`}
+                      className="text-xs font-semibold text-sky-400 hover:text-sky-300 underline"
+                    >
+                      Take Diagnostic →
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Final Assessment Card */}
@@ -408,8 +424,10 @@ export default function ProgressPage() {
                         </p>
                       )}
                     </div>
-                  ) : (
+                  ) : hasDiagnosticBaseline ? (
                     "Gain calculated upon final assessment completion."
+                  ) : (
+                    "Awaiting initial diagnostic baseline and final assessment."
                   )}
                 </div>
               </div>

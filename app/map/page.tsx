@@ -70,7 +70,7 @@ function getActionLabel(action?: string, hasPriorEvidence: boolean = false): str
 
 export default function LearningMapPage() {
   const router = useRouter();
-  const { userId, activeGoal, goals, selectGoal, refreshGoals } = useLearner();
+  const { userId, activeGoal, refreshGoals } = useLearner();
   const [nodes, setNodes] = useState<CompetencyNode[]>([]);
   const [filter, setFilter] = useState<"ALL" | "FOCUS" | "GAPS" | "MASTERED">("ALL");
   const [loading, setLoading] = useState(false);
@@ -237,7 +237,7 @@ export default function LearningMapPage() {
 
   if (!activeGoal) {
     return (
-      <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col">
+      <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col">
         <LearnerNav />
         <main className="flex-1 max-w-4xl mx-auto px-4 py-20 text-center space-y-6">
           <div className="w-12 h-12 rounded-xl bg-white/[0.06] border border-white/[0.08] mx-auto flex items-center justify-center text-xl">
@@ -251,7 +251,7 @@ export default function LearningMapPage() {
           </div>
           <Link
             href="/"
-            className="inline-block px-6 py-3 rounded-xl font-bold text-xs bg-white text-[#07090e] hover:bg-slate-200 transition-all tracking-wide uppercase"
+            className="inline-block px-6 py-3 rounded-xl font-bold text-xs bg-[#F4F4F0] text-[#0C0C0D] hover:bg-white transition-all tracking-wide uppercase"
           >
             Create Learning Goal →
           </Link>
@@ -261,7 +261,7 @@ export default function LearningMapPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col">
       <LearnerNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -330,25 +330,6 @@ export default function LearningMapPage() {
           </div>
         </div>
 
-        {/* Goal Switcher Row (If multiple goals exist) */}
-        {goals.length > 1 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
-            <span className="text-[11px] text-slate-500 uppercase shrink-0">Your Goals:</span>
-            {goals.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => selectGoal(g.id)}
-                className={`px-3 py-1 rounded-lg transition-all shrink-0 ${
-                  g.id === activeGoal.id
-                    ? "bg-white/15 text-white border border-white/20 font-semibold"
-                    : "bg-[#0c1018] border border-white/[0.06] text-slate-400 hover:text-white"
-                }`}
-              >
-                {g.title}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* ============================================================
             2. CONTEXTUAL PRIMARY ACTION BANNER (§3, §4)

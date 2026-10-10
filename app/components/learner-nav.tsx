@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLearner } from "../lib/use-learner";
@@ -12,11 +12,19 @@ export function LearnerNav() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showGoalMenu, setShowGoalMenu] = useState(false);
 
+  const sortedNavGoals = useMemo(() => {
+    return [...goals].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [goals]);
+
   const navLinks = [
     { href: "/", label: "Home", icon: "✨" },
     { href: "/map", label: "Learning Map", icon: "🗺️" },
     { href: "/activity", label: "Practice", icon: "🎯" },
-    { href: "/progress", label: "Progress & Gain", icon: "📈" },
+    { href: "/progress", label: "Progress", icon: "📈" },
     { href: "/history", label: "History", icon: "📜" },
   ];
 
@@ -39,13 +47,13 @@ export function LearnerNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#07090e]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#0C0C0D]/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Thesis */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 group" aria-label="Knowra Home">
-              <KnowraHorizontalLogo theme="dark" className="h-6 w-auto" />
+              <KnowraHorizontalLogo className="h-7 w-auto text-[#F4F4F0]" />
             </Link>
 
             {/* Active Goal Selector (Only when authenticated) */}
@@ -53,25 +61,27 @@ export function LearnerNav() {
               <div className="relative">
                 <button
                   onClick={() => setShowGoalMenu(!showGoalMenu)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-xs font-medium text-slate-200 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-[#161617] hover:border-white/[0.16] text-xs font-medium text-[#F4F4F0] transition-colors max-w-[200px] sm:max-w-[260px]"
+                  title={`${getDomainLabel(activeGoal.domainId)}: ${activeGoal.title}`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-semibold text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-[#C95C3F] shrink-0" />
+                  <span className="font-semibold text-[#A3A3A3] shrink-0 hidden sm:inline">
                     {getDomainLabel(activeGoal.domainId)}:
                   </span>
-                  <span className="truncate max-w-[150px] sm:max-w-[200px] text-slate-400">
+                  <span className="truncate text-[#F4F4F0]">
                     {activeGoal.title}
                   </span>
-                  <span className="text-slate-500 text-[10px]">▼</span>
+                  <span className="text-[#A3A3A3] text-[10px] shrink-0">▼</span>
                 </button>
 
                 {showGoalMenu && (
-                  <div className="absolute left-0 mt-2 w-72 rounded-xl border border-slate-800 bg-slate-900 p-2 shadow-2xl z-50">
-                    <div className="text-[11px] font-semibold text-slate-400 px-3 py-1.5 uppercase tracking-wider">
-                      Your Learning Goals
+                  <div className="absolute left-0 mt-2 w-80 rounded-xl border border-white/[0.08] bg-[#161617] p-2 shadow-2xl z-50">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#A3A3A3] px-3 py-1.5 uppercase tracking-wider">
+                      <span>Your Learning Goals</span>
+                      <span className="font-mono text-[10px] text-[#A3A3A3]">{goals.length}</span>
                     </div>
-                    <div className="space-y-1">
-                      {goals.map((g) => (
+                    <div className="space-y-1 max-h-64 sm:max-h-72 overflow-y-auto pr-1">
+                      {sortedNavGoals.map((g) => (
                         <button
                           key={g.id}
                           onClick={() => {
@@ -80,25 +90,25 @@ export function LearnerNav() {
                           }}
                           className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
                             g.id === activeGoal.id
-                              ? "bg-sky-500/10 text-sky-400 font-semibold border border-sky-500/20"
-                              : "hover:bg-slate-800 text-slate-300"
+                              ? "bg-[#C95C3F]/10 text-[#F4F4F0] font-semibold border border-[#C95C3F]/30"
+                              : "hover:bg-white/[0.04] text-[#A3A3A3]"
                           }`}
                         >
-                          <div className="truncate mr-2">
-                            <div className="font-medium">{g.title}</div>
-                            <div className="text-[10px] text-slate-500">
+                          <div className="truncate mr-2 min-w-0">
+                            <div className="font-medium truncate text-[#F4F4F0]" title={g.title}>{g.title}</div>
+                            <div className="text-[10px] text-[#A3A3A3]">
                               {getDomainLabel(g.domainId)}
                             </div>
                           </div>
-                          {g.id === activeGoal.id && <span>✓</span>}
+                          {g.id === activeGoal.id && <span className="shrink-0 text-[#C95C3F]">✓</span>}
                         </button>
                       ))}
                     </div>
-                    <div className="pt-2 mt-2 border-t border-slate-800">
+                    <div className="pt-2 mt-2 border-t border-white/[0.06]">
                       <Link
                         href="/"
                         onClick={() => setShowGoalMenu(false)}
-                        className="block w-full text-center px-3 py-1.5 rounded-lg text-xs bg-slate-800/80 hover:bg-slate-850 text-slate-300 font-medium transition-colors"
+                        className="block w-full text-center px-3 py-1.5 rounded-lg text-xs bg-white/[0.04] hover:bg-white/[0.08] text-[#F4F4F0] font-medium transition-colors"
                       >
                         + Create New Goal
                       </Link>
@@ -107,7 +117,7 @@ export function LearnerNav() {
                 )}
               </div>
             ) : userId ? (
-              <span className="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 hidden md:inline">
+              <span className="text-xs text-[#A3A3A3] bg-[#161617] px-2.5 py-1 rounded-md border border-white/[0.08] hidden md:inline">
                 No active goal set
               </span>
             ) : null}
@@ -124,8 +134,8 @@ export function LearnerNav() {
                     href={link.href}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       isActive
-                        ? "bg-slate-800 text-white shadow-sm border border-slate-700/60"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                        ? "bg-white/[0.08] text-[#F4F4F0] shadow-sm border border-white/[0.12]"
+                        : "text-[#A3A3A3] hover:text-[#F4F4F0] hover:bg-white/[0.04]"
                     }`}
                   >
                     <span className="text-xs">{link.icon}</span>
@@ -135,14 +145,14 @@ export function LearnerNav() {
               })}
             </nav>
           ) : (
-            <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-slate-300">
-              <Link href="/#how-it-works" className="hover:text-white transition-colors">
+            <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-[#A3A3A3]">
+              <Link href="/#how-it-works" className="hover:text-[#F4F4F0] transition-colors">
                 How It Works
               </Link>
-              <Link href="/#differentiation" className="hover:text-white transition-colors">
+              <Link href="/#differentiation" className="hover:text-[#F4F4F0] transition-colors">
                 Why Knowra
               </Link>
-              <Link href="/#curriculum" className="hover:text-white transition-colors">
+              <Link href="/#curriculum" className="hover:text-[#F4F4F0] transition-colors">
                 Curriculum
               </Link>
             </nav>
@@ -154,34 +164,34 @@ export function LearnerNav() {
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 px-3 py-1 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-xs text-slate-300 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1 rounded-lg border border-white/[0.08] bg-[#161617] hover:border-white/[0.16] text-xs text-[#F4F4F0] transition-colors"
                 >
-                  <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-sky-400 font-semibold">
+                  <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.1] flex items-center justify-center text-[10px] text-[#C95C3F] font-semibold">
                     👤
                   </div>
-                  <span className="font-mono text-[11px] text-slate-300 max-w-[100px] truncate">
+                  <span className="font-mono text-[11px] text-[#A3A3A3] max-w-[100px] truncate">
                     {userId}
                   </span>
-                  <span className="text-slate-500 text-[10px]">▼</span>
+                  <span className="text-[#A3A3A3] text-[10px]">▼</span>
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-900 p-3 shadow-2xl z-50">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-white/[0.08] bg-[#161617] p-3 shadow-2xl z-50">
+                    <div className="text-[11px] font-semibold text-[#A3A3A3] uppercase tracking-wider mb-2">
                       Authenticated Learner
                     </div>
-                    <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 mb-3 font-mono">
-                      <div className="text-xs text-white truncate">
+                    <div className="p-2.5 rounded-lg bg-[#0C0C0D] border border-white/[0.06] mb-3 font-mono">
+                      <div className="text-xs text-[#F4F4F0] truncate">
                         {userEmail || userId}
                       </div>
-                      <div className="text-[10px] text-emerald-400 mt-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <div className="text-[10px] text-[#C95C3F] mt-0.5 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#C95C3F]" />
                         <span>Supabase Session Active</span>
                       </div>
                     </div>
 
-                    {/* Sign Out Action (§31 Case F, §S8.3) */}
-                    <div className="border-t border-slate-800 pt-2">
+                    {/* Sign Out Action */}
+                    <div className="border-t border-white/[0.06] pt-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -197,18 +207,18 @@ export function LearnerNav() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Link
                   href="/auth"
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#A3A3A3] hover:text-[#F4F4F0] transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/auth"
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-md shadow-sky-500/20 transition-all"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-[#0C0C0D] bg-[#F4F4F0] hover:bg-white transition-all shadow-sm"
                 >
-                  Start Learning
+                  Start Learning →
                 </Link>
               </div>
             )}
@@ -217,7 +227,7 @@ export function LearnerNav() {
 
         {/* Mobile Navigation Row */}
         {userId && (
-          <div className="md:hidden flex items-center justify-between py-2 border-t border-slate-800/60 overflow-x-auto gap-1">
+          <div className="md:hidden flex items-center justify-between py-2 border-t border-white/[0.06] overflow-x-auto gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
@@ -226,8 +236,8 @@ export function LearnerNav() {
                   href={link.href}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] whitespace-nowrap transition-colors ${
                     isActive
-                      ? "bg-slate-800 text-white font-semibold"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-white/[0.08] text-[#F4F4F0] font-semibold"
+                      : "text-[#A3A3A3] hover:text-[#F4F4F0]"
                   }`}
                 >
                   <span>{link.icon}</span>

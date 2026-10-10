@@ -81,7 +81,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#0C0C0D] text-[#F4F4F0] flex flex-col">
       <LearnerNav />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -117,18 +117,43 @@ export default function HistoryPage() {
             <p className="text-xs">Loading learner history events...</p>
           </div>
         ) : events.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3">
-            <div className="text-2xl">📜</div>
-            <h3 className="text-sm font-semibold text-white">No Learning Events Recorded Yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Your learning history updates automatically as you complete diagnostics, practice activities, and assessments.
-            </p>
-            <Link
-              href="/"
-              className="inline-block px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 text-white"
-            >
-              Go to Dashboard
-            </Link>
+          <div className="p-12 text-center rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-slate-800/80 border border-slate-700 mx-auto flex items-center justify-center text-xl">
+              📜
+            </div>
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <h3 className="text-base font-semibold text-white">
+                {activeGoal ? `No History Recorded for "${activeGoal.title}"` : "No Learning Events Recorded Yet"}
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Your learning timeline records every milestone: completing the baseline diagnostic, practicing competencies, submitting Feynman explanations, and taking final assessments.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              {activeGoal ? (
+                <Link
+                  href={`/activity?goalId=${activeGoal.id}`}
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#F4F4F0] text-[#0C0C0D] hover:bg-white transition-colors shadow-md"
+                >
+                  Start Practicing Active Goal →
+                </Link>
+              ) : (
+                <Link
+                  href="/"
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#F4F4F0] text-[#0C0C0D] hover:bg-white transition-colors"
+                >
+                  Create or Select a Goal →
+                </Link>
+              )}
+              {activeGoal && (
+                <Link
+                  href={`/map?goalId=${activeGoal.id}`}
+                  className="px-4 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition-colors"
+                >
+                  View Learning Map
+                </Link>
+              )}
+            </div>
           </div>
         ) : (
           <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
