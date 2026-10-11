@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { KnowraHorizontalLogo } from "./brand-logo";
+import { CANONICAL_PUBLIC_URL } from "@/lib/config/app-url";
 
 interface LandingPageProps {
   onStartLearning: () => void;
@@ -111,6 +112,7 @@ function TopographyOverlay({ className = "opacity-[0.07]" }: { className?: strin
 export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
   const [activeVisualStep, setActiveVisualStep] = useState(3);
   const [activePreviewTab, setActivePreviewTab] = useState<"nba" | "map" | "practice" | "progress">("nba");
+  const [urlCopied, setUrlCopied] = useState(false);
 
   // Track landing_viewed on mount
   useEffect(() => {
@@ -941,7 +943,37 @@ export function LandingPage({ onStartLearning, onSignIn }: LandingPageProps) {
 
           <div className="pt-6 flex flex-col sm:flex-row items-baseline justify-between gap-4 text-[11px] text-[#A3A3A3]/80">
             <div>&ldquo;The Learning Engine knows what the learner knows.&rdquo;</div>
-            <div>Knowra Beta 1.0 • Evidence-based adaptive learning platform</div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span>Knowra Beta 1.0 • Evidence-based adaptive learning platform</span>
+              <span>•</span>
+              <div className="inline-flex items-center gap-2 font-mono">
+                <a
+                  href={CANONICAL_PUBLIC_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#F4F4F0] hover:text-[#C95C3F] underline transition-colors"
+                  title={`Open ${CANONICAL_PUBLIC_URL}`}
+                >
+                  {CANONICAL_PUBLIC_URL}
+                </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(CANONICAL_PUBLIC_URL);
+                      setUrlCopied(true);
+                      setTimeout(() => setUrlCopied(false), 2000);
+                    } catch {
+                      // Clipboard fallback
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.06] hover:bg-white/[0.12] text-[#F4F4F0] transition-colors"
+                  title="Copy published application URL"
+                >
+                  {urlCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

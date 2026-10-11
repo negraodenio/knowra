@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLearner } from "../lib/use-learner";
 import { KnowraHorizontalLogo } from "./brand-logo";
+import { CANONICAL_PUBLIC_URL } from "@/lib/config/app-url";
 
 export function LearnerNav() {
   const pathname = usePathname();
   const { userId, userEmail, signOut, activeGoal, goals, selectGoal } = useLearner();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showGoalMenu, setShowGoalMenu] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   const sortedNavGoals = useMemo(() => {
     return [...goals].sort((a, b) => {
@@ -187,6 +189,41 @@ export function LearnerNav() {
                       <div className="text-[10px] text-[#C95C3F] mt-0.5 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#C95C3F]" />
                         <span>Supabase Session Active</span>
+                      </div>
+                    </div>
+
+                    {/* Published Application Address */}
+                    <div className="pt-2 pb-2 mb-2 border-t border-white/[0.06]">
+                      <div className="text-[10px] font-semibold text-[#A3A3A3] uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>Published App</span>
+                        {urlCopied && <span className="text-[#C95C3F] font-mono text-[9px] uppercase">Copied!</span>}
+                      </div>
+                      <div className="flex items-center justify-between gap-1.5 p-1.5 rounded-lg bg-[#0C0C0D] border border-white/[0.06]">
+                        <a
+                          href={CANONICAL_PUBLIC_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-mono text-[#F4F4F0] hover:text-[#C95C3F] truncate underline transition-colors"
+                          title={`Open ${CANONICAL_PUBLIC_URL}`}
+                        >
+                          {CANONICAL_PUBLIC_URL.replace(/^https?:\/\//, "")}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(CANONICAL_PUBLIC_URL);
+                              setUrlCopied(true);
+                              setTimeout(() => setUrlCopied(false), 2000);
+                            } catch {
+                              // Clipboard fallback
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-[#F4F4F0] transition-colors shrink-0"
+                          title="Copy published application URL"
+                        >
+                          {urlCopied ? "✓" : "Copy"}
+                        </button>
                       </div>
                     </div>
 
